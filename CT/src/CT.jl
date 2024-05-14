@@ -304,7 +304,7 @@ end
 # end
 """randomly apply control or Bernoulli map to physical site i
 """
-function random_control!(ct::CT_MPS, i, p_ctrl, )
+function random_control!(ct::CT_MPS, i::Int, p_ctrl, p_proj)
     
     op_l=[]
     p_0=-1.  # -1 for not applicable because of Bernoulli map
@@ -339,6 +339,19 @@ function random_control!(ct::CT_MPS, i, p_ctrl, )
         Bernoulli_map!(ct, i)
         push!(op_l,Dict("Type"=>"Bernoulli","Site"=>[i,((i+1) - 1)%(ct.L) + 1],"Outcome"=>nothing))
         i=mod(((i+1) - 1),(ct.L) )+ 1
+    end
+
+    if op_l[end]["Type"] == "Bernoulli"
+        # projection
+        for pos in [i-1,i]
+            if rand(ct.rng_C) < p_proj
+                pos=mod((pos-1),ct.L)+1
+                p2=inner_prob(ct, [0], [pos])
+                n= rand(ct.rng_C) < p2 ? 0 : 1
+                P!(ct,[n],[pos])
+                push!(op_l,Dict("Type"=>"Projection","Site"=>[pos],"Outcome"=>[n]))
+            end
+        end
     end
     update_history(ct,op_l,p_0)
     
