@@ -66,4 +66,4 @@ end
 
 
 
-# julia --sysimage ~/.julia/sysimages/sys_itensors.so run_CT_MPS.jl --p 1 --L 8 --seed 0 --ancilla 0
+# julia --sysimage ~/.julia/sysimages/sys_itensors.so run_CT_MPS_DW.jl --p 1 --L 8 --seed 0 
