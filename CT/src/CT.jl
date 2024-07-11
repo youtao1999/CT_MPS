@@ -7,7 +7,7 @@ using LinearAlgebra
 # using TimerOutputs
 # const to = TimerOutput()
 
-
+ITensors.disable_warn_order()
 mutable struct CT_MPS
     L::Int
     store_vec::Bool
@@ -435,11 +435,14 @@ end
 
 function display_mps_element(ct::CT_MPS)
     println(rpad("RAM",ct.L+ct.ancilla), "=>", "Physical")
+    vec=zeros(2^(ct.L+ct.ancilla))
     for i in 1:2^(ct.L+ct.ancilla)
         bitstring=lpad(string(i-1,base=2),ct.L+ct.ancilla,"0")
-        matele=CT.mps_element(ct.mps,bitstring)
-        println(bitstring, "=>", bitstring[ct.phy_ram],": ",matele)
+        matel=CT.mps_element(ct.mps,bitstring)
+        println(bitstring, "=>", bitstring[ct.phy_ram],": ",matel)
+        vec[parse(Int,bitstring[ct.phy_ram];base=2)+1]=matel
     end
+    return vec
 end
 
 function dec2bin(x::Real, L::Int)
@@ -622,7 +625,148 @@ function I_MPO(pos_list::Vector{Int},qubit_site::Vector{Index{Int64}})
     return MPO(I_sum,qubit_site)
 end
 
+"""ket_index, bra_index, -1 for no projection, 0 for 0, 1 for 1, using physical index"""
+function get_reduced_DM(dm::MPO,ct::CT_MPS,ket_index::Vector{Int},bra_index::Vector{Int})
+    # dm = get_DM(ct.mps)
+    # remember to split dm because it does not change for different ket_index and bra_index
+    rdm=MPO(ct.qubit_site)
+    for phy_idx in 1:ct.L
+        ram_idx= ct.phy_ram[ct.phy_list[phy_idx]]
+        ket_leg = ct.qubit_site[ram_idx]
+        bra_leg = ket_leg'
+        if ket_index[phy_idx] !=  -1
+            rdm[ram_idx]=dm[ram_idx]* state(ket_leg,ket_index[phy_idx]+1)
+        else
+            rdm[ram_idx]=dm[ram_idx]
+        end
+        if bra_index[phy_idx] !=  -1
+            rdm[ram_idx]=rdm[ram_idx]* state(bra_leg,bra_index[phy_idx]+1)
+        end
+    end
+    truncate!(rdm,cutoff=ct._cutoff)
+    return rdm
+end
+
+function get_DM(mps::MPS)
+    return outer(mps',mps)
+end
+
+function l1_coherence_2(rho::MPO,ct::CT_MPS,k1::Int,k2::Int)
+    L=length(rho)
+    if k1==0
+        ket_index=fill(0,L)
+    else
+        ket_index=vcat(fill(0, L - k1), [1], fill(-1, k1 - 1))
+    end
+
+    if k2==0
+        bra_index = fill(0,L)
+    else
+        bra_index = vcat(fill(0, L - k2), [1], fill(-1, k2 - 1))
+    end
+    rdm = get_reduced_DM(rho,ct, ket_index, bra_index)
+    if k1 ==k2
+        sum_=sum_of_norm(rdm,false)
+        tr_rho = trace(rdm)
+        intra_sum= (sum(length,siteinds(rdm)) < 14) ? sum_-tr_rho : sum_
+        return  intra_sum, tr_rho
+    else
+        return sum_of_norm(rdm,true)
+    end
+end
+
+function sum_of_norm(rdm::MPO,inter)
+    len_rdm= sum(length,siteinds(rdm)) 
+    if len_rdm < 14
+        return sum(abs.(prod(rdm)))
+    else
+        return sum_of_norm_sample(rdm,inter)
+    end
+end
+
+function trace(rdm::MPO)
+    for i in 1:length(rdm)
+        if hastags(rdm[i],"Site")
+            rdm[i] = tr(rdm[i])
+        end
+    end
+    return scalar(prod(rdm))
+end
+
+function sum_of_norm_loop(rdm::MPO)
+    sum_=0
+    L= sum(length,siteinds(rdm)) 
+    site_idx=siteinds(rdm)
+        
+    for basis in 1:2^L
+        x=collect(lpad(string(basis-1,base=2),L,"0"))
+        V = ITensor(1.0)
+        for i in 1:length(rdm)
+            V *= rdm[i] 
+            for ind in site_idx[i]
+                V *= state(ind,pop!(x)-'0'+1 )
+            end
+        end
+        sum_ += abs(scalar(V))
+    end
+    return sum_
+end
+
+""" instead of summing all, using O(L) samples"""
+function sum_of_norm_sample(rdm::MPO,inter::Bool)
+    sum_=0
+    L= sum(length,siteinds(rdm)) 
+    site_idx=siteinds(rdm)
+    basis_list = 2:L*2
+    for basis in basis_list
+        x=collect(lpad(string(basis-1,base=2),L,"0"))
+        V = ITensor(1.0)
+        for i in 1:length(rdm)
+            V *= rdm[i] 
+            for ind in site_idx[i]
+                V *= state(ind,pop!(x)-'0'+1 )
+            end
+        end
+        sum_ += abs(scalar(V)) 
+    end
+    if inter
+        return sum_* 2^L/length(basis_list)
+    else
+        return sum_* (2^L-2^(L/2))/length(basis_list)
+    end
+end
+
+function get_coherence_matrix(rho::MPO,ct::CT_MPS)
+    L=length(rho)
+    coherence_matrix=zeros(L+1,L+1)
+    fdw=zeros(L+1)
+    for i in 0:L
+        for j in 0:L
+            if i == j
+                # @timeit to "same" begin
+                coherence_matrix[i+1,j+1], fdw[i+1] = l1_coherence_2(rho,ct,i,j)
+                # end
+            else
+                # @timeit to "different" begin
+                coherence_matrix[i+1,j+1] = l1_coherence_2(rho,ct,i,j)
+                coherence_matrix[j+1,i+1] = coherence_matrix[i+1,j+1]
+                # end
+            end
+        end
+    end
+    return coherence_matrix, fdw
+end
     
+function test_profiler()
+    ct=CT_MPS(L=4,seed=1,folded=true,store_op=false,store_vec=false,ancilla=0,_maxdim=6,xj=Set([0]),)
+    dm = get_DM(ct.mps)
+    coherence_matrix, fdw=get_coherence_matrix(dm,ct)
+    # println("Timer outputs:")
+    # show(to)
+end
+
+
+
 greet() = print("Hello World! How are 11?")
 
 
