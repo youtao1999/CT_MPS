@@ -302,7 +302,7 @@ end
 #         i=mod(((i+1) - 1),ct.L+ct.ancilla )+ 1
 #     end
 # end
-"""randomly apply control or Bernoulli map to physical site i
+"""randomly apply control or Bernoulli map to physical site i (the left leg of op)
 """
 function random_control!(ct::CT_MPS, i::Int, p_ctrl, p_proj)
     
@@ -626,12 +626,12 @@ function I_MPO(pos_list::Vector{Int},qubit_site::Vector{Index{Int64}})
 end
 
 """ket_index, bra_index, -1 for no projection, 0 for 0, 1 for 1, using physical index"""
-function get_reduced_DM(dm::MPO,ct::CT_MPS,ket_index::Vector{Int},bra_index::Vector{Int})
-    # dm = get_DM(ct.mps)
-    # remember to split dm because it does not change for different ket_index and bra_index
+function get_reduced_DM(dm::MPO,ct::CT_MPS,ket_index::Vector{Int},bra_index::Vector{Int},i1::Int)
     rdm=MPO(ct.qubit_site)
     for phy_idx in 1:ct.L
-        ram_idx= ct.phy_ram[ct.phy_list[phy_idx]]
+        ram_idx= ct.phy_ram[mod(ct.phy_list[phy_idx] + i1-1  ,ct.L)+1]
+        # ram_idx= ct.phy_ram[ct.phy_list[phy_idx]]
+        # println(mod(ct.phy_list[phy_idx] + i1 -1  ,ct.L)+1)
         ket_leg = ct.qubit_site[ram_idx]
         bra_leg = ket_leg'
         if ket_index[phy_idx] !=  -1
@@ -651,7 +651,7 @@ function get_DM(mps::MPS)
     return outer(mps',mps)
 end
 
-function l1_coherence_2(rho::MPO,ct::CT_MPS,k1::Int,k2::Int)
+function l1_coherence_2(rho::MPO,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
     L=length(rho)
     if k1==0
         ket_index=fill(0,L)
@@ -664,7 +664,7 @@ function l1_coherence_2(rho::MPO,ct::CT_MPS,k1::Int,k2::Int)
     else
         bra_index = vcat(fill(0, L - k2), [1], fill(-1, k2 - 1))
     end
-    rdm = get_reduced_DM(rho,ct, ket_index, bra_index)
+    rdm = get_reduced_DM(rho,ct, ket_index, bra_index,i1)
     if k1 ==k2
         sum_=sum_of_norm(rdm,false)
         tr_rho = trace(rdm)
@@ -690,7 +690,7 @@ function trace(rdm::MPO)
             rdm[i] = tr(rdm[i])
         end
     end
-    return scalar(prod(rdm))
+    return abs(scalar(prod(rdm)))
 end
 
 function sum_of_norm_loop(rdm::MPO)
@@ -736,7 +736,8 @@ function sum_of_norm_sample(rdm::MPO,inter::Bool)
     end
 end
 
-function get_coherence_matrix(rho::MPO,ct::CT_MPS)
+function get_coherence_matrix(ct::CT_MPS,i1::Int)
+    rho = get_DM(ct.mps)
     L=length(rho)
     coherence_matrix=zeros(L+1,L+1)
     fdw=zeros(L+1)
@@ -744,11 +745,11 @@ function get_coherence_matrix(rho::MPO,ct::CT_MPS)
         for j in 0:L
             if i == j
                 # @timeit to "same" begin
-                coherence_matrix[i+1,j+1], fdw[i+1] = l1_coherence_2(rho,ct,i,j)
+                coherence_matrix[i+1,j+1], fdw[i+1] = l1_coherence_2(rho,ct,i,j,i1)
                 # end
             else
                 # @timeit to "different" begin
-                coherence_matrix[i+1,j+1] = l1_coherence_2(rho,ct,i,j)
+                coherence_matrix[i+1,j+1] = l1_coherence_2(rho,ct,i,j,i1)
                 coherence_matrix[j+1,i+1] = coherence_matrix[i+1,j+1]
                 # end
             end
