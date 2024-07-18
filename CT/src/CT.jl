@@ -4,10 +4,14 @@ using ITensors
 using Random
 using LinearAlgebra
 
+
+
 # using TimerOutputs
 # const to = TimerOutput()
+function __init__()
+    ITensors.disable_warn_order()
+end
 
-ITensors.disable_warn_order()
 mutable struct CT_MPS
     L::Int
     store_vec::Bool
@@ -405,12 +409,23 @@ function Zi(ct::CT_MPS)
     return sZ*2
 end
 
+"""note that here ZiZj is not put to the correct position because it would be taken a sum in the end anyway""" 
+function ZiZj(ct::CT_MPS)
+    sZZ=correlation_matrix(ct.mps, "Sz", "Sz")
+    return sZZ*4
+end
+
 function Z(ct::CT_MPS)
     sZ = Zi(ct)
     if ct.debug
         println("Z are $(2 * sZ)")
     end
     return real(sum(sZ)) / ct.L
+end
+
+function Z_sq(ct::CT_MPS)
+    sZZ = ZiZj(ct)
+    return real(sum(sZZ)) / ct.L^2
 end
 
 function ZZ(ct::CT_MPS)
@@ -625,7 +640,7 @@ function I_MPO(pos_list::Vector{Int},qubit_site::Vector{Index{Int64}})
     return MPO(I_sum,qubit_site)
 end
 
-"""ket_index, bra_index, -1 for no projection, 0 for 0, 1 for 1, using physical index"""
+"""ket_index, bra_index, -1 for no projection, 0 for 0, 1 for 1, using physical index, i1 is the last qubit"""
 function get_reduced_DM(dm::MPO,ct::CT_MPS,ket_index::Vector{Int},bra_index::Vector{Int},i1::Int)
     rdm=MPO(ct.qubit_site)
     for phy_idx in 1:ct.L
@@ -668,21 +683,65 @@ function l1_coherence_2(rho::MPO,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
     if k1 ==k2
         sum_=sum_of_norm(rdm,false)
         tr_rho = trace(rdm)
-        intra_sum= (sum(length,siteinds(rdm)) < 14) ? sum_-tr_rho : sum_
+        intra_sum= (sum(length,siteinds(rdm)) < 44) ? sum_-tr_rho : sum_
         return  intra_sum, tr_rho
     else
         return sum_of_norm(rdm,true)
     end
 end
 
+function l1_coherence(rho::MPO,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
+    L=length(rho)
+    if k1==0
+        ket_index=fill(0,L)
+    else
+        ket_index=vcat(fill(0, L - k1), [1], fill(-1, k1 - 1))
+    end
+
+    if k2==0
+        bra_index = fill(0,L)
+    else
+        bra_index = vcat(fill(0, L - k2), [1], fill(-1, k2 - 1))
+    end
+    rdm = get_reduced_DM(rho,ct, ket_index, bra_index,i1)
+    if k1 ==k2
+        sum_=sum_of_norm_MPS(rdm)
+        tr_rho = trace(rdm)
+        intra_sum= sum_-tr_rho
+        return  intra_sum, tr_rho
+    else
+        return sum_of_norm_MPS(rdm)
+    end
+end
+
 function sum_of_norm(rdm::MPO,inter)
     len_rdm= sum(length,siteinds(rdm)) 
-    if len_rdm < 14
-        return sum(abs.(prod(rdm)))
+    if len_rdm < 44
+        return sum_of_norm_tensor(rdm)
     else
         return sum_of_norm_sample(rdm,inter)
     end
 end
+
+"""convert to tensor and sum"""
+function sum_of_norm_tensor(rdm::MPO)
+    return sum(abs.(prod(rdm)))
+end
+
+"""inner product with all one MPS (note that this needs to take a positive matrix, where every elemnt has bee taken norm already)"""
+function sum_of_norm_MPS(rdm::MPO)
+    L = length(rdm)
+    site_idx=siteinds(rdm)
+    V=ITensor(1.)
+    for i in 1:L
+        V*=rdm[i]
+        for ind in site_idx[i]
+            V*=ITensor([1.,1.],ind)
+        end
+    end
+    return scalar(V)
+end
+
 
 function trace(rdm::MPO)
     for i in 1:length(rdm)
@@ -757,7 +816,72 @@ function get_coherence_matrix(ct::CT_MPS,i1::Int)
     end
     return coherence_matrix, fdw
 end
+
+"""return the element-wise product of two MPS mps1, and mp2"""
+function elementwise_product(mps1::MPS, mps2::MPS;cutoff::Float64=1e-10,maxdim::Int=25,method::String="densitymatrix")
+    site_idx=siteinds(mps1)
+    mpo1=MPO(site_idx)
+    for i in 1:length(mps1)
+        mpo1[i]=mps1[i]* delta(site_idx[i],prime(site_idx[i],1),prime(site_idx[i],2))
+    end
+    mps_prod=apply(mpo1,prime(mps2;tags="Site"),method=method,cutoff=cutoff,maxdim=maxdim)
+    # truncate!(mps_prod, cutoff=cutoff)
+    return noprime!(mps_prod)
+end
+
+function all_one_mps(sites::Vector{Index{Int64}})
+    mps=MPS(sites)
+    for i in 1:length(mps)
+        mps[i]=ITensor([1,1],sites[i])
+    end
+    return mps
+end
+
+
+"""return the element-wise sqrt of mps"""
+function sqrt_mps(mps::MPS;eps::Float64=1e-5,maxiter::Int=100,cutoff::Float64=1e-10,maxdim::Int=20)
+    L=siteinds(mps)
+    allone=CT.all_one_mps(siteinds(mps))
+    a=mps
+    c=mps-allone
+    diff_a = 100
+    while diff_a > eps && maxiter > 0
+        println(maxiter)
+        a_new = -(a,elementwise_product(a,c,cutoff=cutoff,maxdim=maxdim)/2,cutoff=cutoff,maxdim=maxdim)
+        truncate!(a_new)
+        c = elementwise_product(elementwise_product(c,c, cutoff=cutoff,maxdim=maxdim),-(c,3*allone,cutoff=cutoff,maxdim=maxdim), cutoff=cutoff,maxdim=maxdim)/4
+        truncate!(c)
+        # diff_a=(1-inner(c,c))
+        # diff_a=10
+        diff_a_mps=a-a_new
+        diff_a = abs(inner(conj(diff_a_mps),diff_a_mps))
+        println(diff_a)
+        a=a_new
+        # c=c_new
+        maxiter -= 1
+    end
+    return a,c
+end
+
+
+"""return the element-wise sqrt of mps, using 1/sqrt(S), potential caveat: divergence if S is too large"""
+function sqrt_mps_inverse(mps::MPS,eps::Float64=1e-5,maxiter::Int=100)
+    allone=CT.all_one_mps(siteinds(mps))
+    x=allone
+    diff_x = 100
+    while diff_x > eps && maxiter > 0
+        println(maxiter)
+        x_new=elementwise_product(allone*3/2-elementwise_product(elementwise_product(x,x),mps)/2,x)
+        diff_x_mps=x-x_new
+        diff_x = inner(diff_x_mps,diff_x_mps)
+        x=x_new
+        maxiter -= 1
+    end
+    return elementwise_product(x,mps)
+end
+
     
+
 function test_profiler()
     ct=CT_MPS(L=4,seed=1,folded=true,store_op=false,store_vec=false,ancilla=0,_maxdim=6,xj=Set([0]),)
     dm = get_DM(ct.mps)
@@ -766,6 +890,7 @@ function test_profiler()
     # show(to)
 end
 
+# function all_one_mps()
 
 
 greet() = print("Hello World! How are 11?")
