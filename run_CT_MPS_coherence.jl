@@ -13,17 +13,19 @@ using Serialization
 """ compute domain wall as a function of t"""
 
 function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
-    ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=1//2^(L÷2+1))
+    ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=1//2^L)
+    # x0=1//2^(L÷2+1)
     i=L
     tf=(ct.ancilla ==0) ? 2*ct.L^2 : div(ct.L^2,2)
     coh_mat=zeros(tf+1,L+1,L+1)
-    coh_mat[1,:,:], _ = CT.get_coherence_matrix(ct,i)
+    fdw=zeros(tf+1,L+1)
+    coh_mat[1,:,:], fdw[1,:] = CT.get_coherence_matrix(ct,i)
     for idx in 1:tf
         println(idx,':',i)
         i=CT.random_control!(ct,i,p_ctrl,p_proj)
-        coh_mat[idx+1,:,:], _ = CT.get_coherence_matrix(ct,i)
+        coh_mat[idx+1,:,:], fdw[idx+1,:] = CT.get_coherence_matrix(ct,i)
     end
-    return Dict("coh_mat"=>coh_mat)
+    return Dict("coh_mat"=>coh_mat,"fdw"=>fdw)
 end
 
 

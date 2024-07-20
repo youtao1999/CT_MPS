@@ -3,8 +3,8 @@ module CT
 using ITensors
 using Random
 using LinearAlgebra
-
-
+import TensorCrossInterpolation as TCI
+using TCIITensorConversion
 
 # using TimerOutputs
 # const to = TimerOutput()
@@ -231,7 +231,7 @@ function projector(ct::CT_MPS,n::Vector{Int}, i::Vector{Int})
     end
     proj_op=emptyITensor(ct.qubit_site[ct.phy_ram[ct.phy_list[i]]],ct.qubit_site[ct.phy_ram[ct.phy_list[i]]]')
     idx=n.+1
-    proj_op[ idx...,idx... ]=1
+    proj_op[ idx...,idx... ]=1+0im
     return proj_op
 end
 """ perform projection for physical site
@@ -252,7 +252,7 @@ end
 """ perform Sigma_X for physical site
 """
 function X!(ct::CT_MPS, i::Int)
-    X_op=ITensor([0 1; 1 0],ct.qubit_site[ct.phy_ram[ct.phy_list[i]]],ct.qubit_site[ct.phy_ram[ct.phy_list[i]]]')
+    X_op=ITensor([0 1+0im; 1+0im 0],ct.qubit_site[ct.phy_ram[ct.phy_list[i]]],ct.qubit_site[ct.phy_ram[ct.phy_list[i]]]')
     apply_op!(ct.mps, X_op, ct._cutoff)
     # normalize!(ct.mps)
 end
@@ -450,7 +450,7 @@ end
 
 function display_mps_element(ct::CT_MPS)
     println(rpad("RAM",ct.L+ct.ancilla), "=>", "Physical")
-    vec=zeros(2^(ct.L+ct.ancilla))
+    vec=zeros(Complex{Float64},2^(ct.L+ct.ancilla))
     for i in 1:2^(ct.L+ct.ancilla)
         bitstring=lpad(string(i-1,base=2),ct.L+ct.ancilla,"0")
         matel=CT.mps_element(ct.mps,bitstring)
@@ -795,8 +795,21 @@ function sum_of_norm_sample(rdm::MPO,inter::Bool)
     end
 end
 
-function get_coherence_matrix(ct::CT_MPS,i1::Int)
-    rho = get_DM(ct.mps)
+function abs_mps(mps::MPS;tolerance::Real=1e-8, maxbonddim::Int=30)
+    L=length(mps)
+    sites=siteinds(mps)
+    mps_tci=TCI.TensorTrain(mps)
+    localdims = fill(2, L)
+    mps_abs_func(v) = abs(mps_tci(v))
+    mps_abs_func_cache = TCI.CachedFunction{Float64}(mps_abs_func,localdims)
+    initialpivots=[fill(1,L),[1,2,fill(1,L-2)...]] # this gives the max value of wave function
+    tci, _, _ = TCI.crossinterpolate2(Float64, mps_abs_func_cache, localdims, initialpivots; tolerance=tolerance, maxbonddim=maxbonddim,)
+    return MPS(tci,sites=sites)
+end
+
+function get_coherence_matrix(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
+    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
+    rho = get_DM(mps_abs)
     L=length(rho)
     coherence_matrix=zeros(L+1,L+1)
     fdw=zeros(L+1)
@@ -804,11 +817,11 @@ function get_coherence_matrix(ct::CT_MPS,i1::Int)
         for j in 0:L
             if i == j
                 # @timeit to "same" begin
-                coherence_matrix[i+1,j+1], fdw[i+1] = l1_coherence_2(rho,ct,i,j,i1)
+                coherence_matrix[i+1,j+1], fdw[i+1] = l1_coherence(rho,ct,i,j,i1)
                 # end
             else
                 # @timeit to "different" begin
-                coherence_matrix[i+1,j+1] = l1_coherence_2(rho,ct,i,j,i1)
+                coherence_matrix[i+1,j+1] = l1_coherence(rho,ct,i,j,i1)
                 coherence_matrix[j+1,i+1] = coherence_matrix[i+1,j+1]
                 # end
             end
