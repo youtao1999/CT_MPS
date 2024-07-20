@@ -13,16 +13,20 @@ using Serialization
 """ compute domain wall as a function of t"""
 
 function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
-    ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=1//2^(L÷2+1))
+    ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=1//2^L)
+    # x0=1//2^(L÷2+1)
     i=L
     tf=(ct.ancilla ==0) ? 2*ct.L^2 : div(ct.L^2,2)
     dw_list=zeros(tf+1,2)
     dw_list[1,:]=collect(CT.dw(ct,1))
+    O_list=zeros(tf+1,2)
+    O_list[1,:]=[CT.Z(ct),CT.Z_sq(ct)]
     for idx in 1:tf
         i=CT.random_control!(ct,i,p_ctrl,p_proj)
         dw_list[idx+1,:]=collect(CT.dw(ct,(i%ct.L)+1))
+        O_list[idx+1,:]=[CT.Z(ct),CT.Z_sq(ct)]
     end
-    return Dict("DW1"=>dw_list[:,1],"DW2"=>dw_list[:,2])
+    return Dict("DW1"=>dw_list[:,1],"DW2"=>dw_list[:,2],"O1"=>O_list[:,1],"O2"=>O_list[:,2])
 end
 
 
@@ -55,7 +59,8 @@ function main()
     args = parse_my_args()
     results = run_dw_t(args["L"], args["p_ctrl"], args["p_proj"], args["seed"])
 
-    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_DW.json"
+    # filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_DW.json"
+    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_x01_DW.json"
     data_to_serialize = merge(results, Dict("args" => args))
     json_data = JSON.json(data_to_serialize)
     open(filename, "w") do f

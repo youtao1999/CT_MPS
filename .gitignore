@@ -2,3 +2,8 @@ Data/
 *.json
 *.jls
 test_mod/
+MPS_0-1_DW
+obs-del
+*.output
+*.error
+*.log
