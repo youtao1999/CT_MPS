@@ -99,7 +99,7 @@ function _initialize_vector(L,ancilla,x0,folded,qubit_site,ram_phy,phy_ram,phy_l
         if x0 !== nothing
             vec_int = dec2bin(x0, L)
             vec_int_pos = [string(s) for s in lpad(string(vec_int, base=2), L, "0")] # physical index
-            return MPS(qubit_site, [vec_int_pos[ram_phy[i]] for i in 1:L])
+            return MPS(ComplexF64, qubit_site, [vec_int_pos[ram_phy[i]] for i in 1:L])
         else
             return randomMPS(rng_vec, qubit_site, linkdims=_maxdim)
         end
@@ -109,7 +109,7 @@ function _initialize_vector(L,ancilla,x0,folded,qubit_site,ram_phy,phy_ram,phy_l
             vec_int = dec2bin(x0, L)
             vec_int_pos = [string(s) for s in lpad(string(vec_int, base=2), L, "0")] # physical index
             push!(vec_int_pos,"0")
-            return MPS(qubit_site, [vec_int_pos[ram_phy[i]] for i in 1:(L+ancilla)])
+            return MPS(ComplexF64,qubit_site, [vec_int_pos[ram_phy[i]] for i in 1:(L+ancilla)])
         else
             # Create two orthogonal MPS and couple them to |0> and |1> ancilla, respectively
             # The physical qubit of ancilla is always the last one
