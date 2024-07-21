@@ -34,7 +34,7 @@ function parse_my_args()
     @add_arg_table! s begin
         "--p_ctrl"
         arg_type = Float64
-        default = 0.0
+        default = 0.5
         help = "control rate"
         "--p_proj"
         arg_type = Float64
