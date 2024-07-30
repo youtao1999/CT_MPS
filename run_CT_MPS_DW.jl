@@ -12,9 +12,22 @@ using ArgParse
 using Serialization
 """ compute domain wall as a function of t"""
 
+function random_int(L,seed=nothing)
+    lower_bound = 2^(L-1)
+    upper_bound = 2^L - 1
+    if seed !== nothing
+        rng = MersenneTwister(seed)
+        return rand(rng, lower_bound:upper_bound)
+    else
+        return rand(lower_bound:upper_bound)
+    end
+end
+
 function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
-    ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=1//2^L)
+    ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=random_int(L,seed)//2^L)
+    print("x0: ", ct.x0)
     # x0=1//2^(L÷2+1)
+    # x0=1//2^L
     i=L
     tf=(ct.ancilla ==0) ? 2*ct.L^2 : div(ct.L^2,2)
     dw_list=zeros(tf+1,2)
