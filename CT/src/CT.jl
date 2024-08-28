@@ -19,7 +19,8 @@ mutable struct CT_MPS
     store_prob::Bool
     seed::Union{Int,Nothing}
     seed_vec::Union{Int,Nothing}
-    seed_C::Union{Int,Nothing}
+    seed_C::Union{Int,Nothing} # random seed for "circuit", i.e., choice of unitary (Bernoulli) and position of measurement (control)
+    seed_m::Union{Int,Nothing} # random seed for "measurement outcome".
     x0::Union{Rational{Int},Nothing}
     xj::Set
     _eps::Float64
@@ -28,6 +29,7 @@ mutable struct CT_MPS
     rng::Random.AbstractRNG
     rng_vec::Random.AbstractRNG
     rng_C::Random.AbstractRNG
+    rng_m::Random.AbstractRNG
     qubit_site::Vector{Index{Int64}}
     phy_ram::Vector{Int}
     ram_phy::Vector{Int}
@@ -50,6 +52,7 @@ function CT_MPS(
     seed::Union{Nothing,Int}=nothing,
     seed_vec::Union{Nothing,Int}=nothing,
     seed_C::Union{Nothing,Int}=nothing,
+    seed_m::Union{Nothing,Int}=nothing,
     x0::Union{Rational{Int},Nothing}=nothing,
     xj::Set=Set([1 // 3, 2 // 3]),
     _eps::Float64=1e-10,
@@ -62,11 +65,12 @@ function CT_MPS(
     rng = MersenneTwister(seed)
     rng_vec = seed_vec === nothing ? rng : MersenneTwister(seed_vec)
     rng_C = seed_C === nothing ? rng : MersenneTwister(seed_C)
+    rng_m = seed_m === nothing ? rng : MersenneTwister(seed_m)
     qubit_site, ram_phy, phy_ram, phy_list = _initialize_basis(L,ancilla,folded)
     mps=_initialize_vector(L,ancilla,x0,folded,qubit_site,ram_phy,phy_ram,phy_list,rng_vec,_cutoff,_maxdim)
     adder=[adder_MPO(i1,xj,qubit_site,L,phy_ram,phy_list) for i1 in 1:L]
     dw=[[dw_MPO(i1,xj,qubit_site,L,phy_ram,phy_list,order) for i1 in 1:L] for order in 1:2]
-    ct = CT_MPS(L, store_vec, store_op, store_prob, seed, seed_vec, seed_C, x0, xj, _eps, ancilla, folded, rng, rng_vec, rng_C, qubit_site, phy_ram, ram_phy, phy_list, _maxdim, _cutoff, mps, [],[],adder,dw,debug)
+    ct = CT_MPS(L, store_vec, store_op, store_prob, seed, seed_vec, seed_C, seed_m, x0, xj, _eps, ancilla, folded, rng, rng_vec, rng_C, rng_m, qubit_site, phy_ram, ram_phy, phy_list, _maxdim, _cutoff, mps, [],[],adder,dw,debug)
     return ct
 end
 
@@ -177,7 +181,8 @@ function S!(ct::CT_MPS, i::Int, rng::Random.AbstractRNG; builtin=false)
     # mps[i] *= U
     # mps[i+1] *= U
     # return
-    U_4 = reshape(U(4,rng), 2, 2, 2, 2)
+    U_4_mat=U(4,rng)
+    U_4 = reshape(U_4_mat, 2, 2, 2, 2)
     if ct.ancilla == 0 || ct.ancilla ==1
         ram_idx = ct.phy_ram[[ct.phy_list[i], ct.phy_list[(i)%(ct.L)+1]]]
         U_4_tensor = ITensor(U_4, ct.qubit_site[ram_idx[1]], ct.qubit_site[ram_idx[2]], ct.qubit_site[ram_idx[1]]', ct.qubit_site[ram_idx[2]]')
@@ -189,7 +194,7 @@ function S!(ct::CT_MPS, i::Int, rng::Random.AbstractRNG; builtin=false)
         end
 
         if ct.debug
-            println("U apply to $(i)")
+            println("U $(U_4_mat) apply to $(i)")
         end
     elseif ct.ancilla ==2
         nothing
@@ -319,7 +324,7 @@ function random_control!(ct::CT_MPS, i::Int, p_ctrl, p_proj)
             if ct.debug
                 println("Born prob for measuring 0 at phy site $i is $p_0")
             end
-            n =  rand(ct.rng) < p_0 ?  0 : 1
+            n =  rand(ct.rng_m) < p_0 ?  0 : 1
             control_map(ct, [n], [i])
             push!(op_l,Dict("Type"=>"Control","Site"=>[i],"Outcome"=>[n]))
         elseif ct.xj in [Set([1 // 3, -1 // 3])]
@@ -351,7 +356,7 @@ function random_control!(ct::CT_MPS, i::Int, p_ctrl, p_proj)
             if rand(ct.rng_C) < p_proj
                 pos=mod((pos-1),ct.L)+1
                 p2=inner_prob(ct, [0], [pos])
-                n= rand(ct.rng_C) < p2 ? 0 : 1
+                n= rand(ct.rng_m) < p2 ? 0 : 1
                 P!(ct,[n],[pos])
                 push!(op_l,Dict("Type"=>"Projection","Site"=>[pos],"Outcome"=>[n]))
             end
