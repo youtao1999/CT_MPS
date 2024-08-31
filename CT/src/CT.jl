@@ -409,6 +409,7 @@ function order_parameter(ct::CT_MPS)
     end
 end
 
+"""return each Z_i at physical site i, <Z_i>, here no need to have the second moment because <Z_i^2> = 1"""
 function Zi(ct::CT_MPS)
     sZ = expect(ct.mps, "Sz")[ct.phy_ram][ct.phy_list]
     return sZ*2
@@ -420,6 +421,7 @@ function ZiZj(ct::CT_MPS)
     return sZZ*4
 end
 
+raw""" return the sum of Z_i, i.e., <O>, where O=1/L \sum_i Z_i"""
 function Z(ct::CT_MPS)
     sZ = Zi(ct)
     if ct.debug
@@ -428,6 +430,7 @@ function Z(ct::CT_MPS)
     return real(sum(sZ)) / ct.L
 end
 
+raw""" return the square sum of Z_i, i.e., <O^2>, where O=1/L \sum_i Z_i. Thus, <O^2> = 1/L^2<\sum_{ij}Z_iZ_j>"""
 function Z_sq(ct::CT_MPS)
     sZZ = ZiZj(ct)
     return real(sum(sZZ)) / ct.L^2

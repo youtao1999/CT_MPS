@@ -24,11 +24,11 @@ function random_int(L,lower_bound,upper_bound,seed=nothing)
 end
 
 function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
-    ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=random_int(L,seed)//2^L)
+    ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=random_int(seed,0,2^L-1)//2^L)
     print("x0: ", ct.x0)
     # x0=1//2^(L÷2+1)   # at the midpoint
     # x0=1//2^L     # at k=1
-    # x0=random_int(L,seed)//2^L # at k=L
+    # x0=random_int(L,2^(L-1),2^L - 1, seed)//2^L # at k=L
     # x0=random_int(seed,0,2^L-1)//2^L # at random k
     i=L
     tf=(ct.ancilla ==0) ? 2*ct.L^2 : div(ct.L^2,2)
@@ -82,8 +82,8 @@ function main()
 
     # filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_DW.json"
     # filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_x01_DW.json"
-    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_x12_DW.json"
-    # filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_x00_DW.json"
+    # filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_x12_DW.json"
+    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_x00_DW.json"
     data_to_serialize = merge(results, Dict("args" => args))
     json_data = JSON.json(data_to_serialize)
     open(filename, "w") do f

@@ -7,3 +7,5 @@ obs-del
 *.output
 *.error
 *.log
+*.pickle
+*.txt
