@@ -85,6 +85,8 @@ function parse_my_args()
 end
 
 function main()
+    start_time = time()
+
     println("Uses threads: ",BLAS.get_num_threads())
     println("Uses backends: ",BLAS.get_config())
     args = parse_my_args()
@@ -95,6 +97,33 @@ function main()
     json_data = JSON.json(data_to_serialize)
     open(filename, "w") do f
         write(f, json_data)
+    end
+    elapsed_time = time() - start_time
+    println("p_ctrl: ", args["p_ctrl"], " p_proj: ", args["p_proj"], " L: ", args["L"], " seed_C: ", args["seed_C"], " seed_m: ", args["seed_m"])
+    println("Execution time: ", elapsed_time, " s")
+end
+
+function main_interactive(L::Int,p_ctrl::Float64,p_proj::Float64,seed_C::Int,seed_m::Int)
+    start_time = time()
+
+    # println("Uses threads: ",BLAS.get_num_threads())
+    # println("Uses backends: ",BLAS.get_config())
+    # args = parse_my_args()
+    args=Dict("L"=>L,"p_ctrl"=>p_ctrl,"p_proj"=>p_proj,"seed_C"=>seed_C,"seed_m"=>seed_m)
+    filename = "MPS_(0,1)_L$(L)_pctrl$(@sprintf("%.3f", p_ctrl))_pproj$(@sprintf("%.3f", p_proj))_sC$(seed_C)_sm$(seed_m)_x01_DW_T.json"
+    if isfile(filename)
+        println("File exists: ", "p_ctrl: ", p_ctrl, " p_proj: ", p_proj, " L: ", L, " seed_C: ", seed_C, " seed_m: ", seed_m)
+    else
+        results = run_dw_t(L, p_ctrl, p_proj, seed_C,seed_m)
+
+        data_to_serialize = merge(results, Dict("args" => args))
+        json_data = JSON.json(data_to_serialize)
+        open(filename, "w") do f
+            write(f, json_data)
+        end
+        elapsed_time = time() - start_time
+        println("p_ctrl: ", args["p_ctrl"], " p_proj: ", p_proj, " L: ", L, " seed_C: ", seed_C, " seed_m: ", seed_m)
+        println("Execution time: ", elapsed_time, " s")
     end
 end
 
