@@ -9,3 +9,6 @@ obs-del
 *.log
 *.pickle
 *.txt
+.julia
+.condor_creds
+.gwms.d
