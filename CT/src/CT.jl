@@ -720,6 +720,15 @@ function get_reduced_state(mps::MPS,ct::CT_MPS,index::Vector{Int},i1::Int)
     return V[1]
 end
 
+function get_norm_state(mps::MPS,ct::CT_MPS)
+    V = ITensor(1.0)
+    for idx in 1:ct.L
+        ket_leg = ct.qubit_site[idx]
+        V *= mps[idx] * ITensor([1.,1.],ket_leg)
+    end
+    return V[1]
+end
+
 function get_DM(mps::MPS)
     return outer(mps',mps)
 end
@@ -775,16 +784,23 @@ end
 """simplied version of l1_coherence"""
 function l1_coherence_0(mps::MPS,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
     L = length(mps)
-    ket_index = (k1 == 0) ? fill(0,L) : vcat(fill(0, L - k1), [1], fill(-1, k1 - 1))
-    bra_index = (k2 == 0) ? fill(0,L) : vcat(fill(0, L - k2), [1], fill(-1, k2 - 1))
-
-    coh = conj(get_reduced_state(mps,ct,bra_index,i1)) * get_reduced_state(mps,ct,ket_index,i1)
-    if k1 == k2
-        tr_rho = trace_0(mps,ct,ket_index,i1)
-        return coh-tr_rho, tr_rho
+    if k1 == k2 == L+1
+        # directly compute the total norm
+        return (get_norm_state(mps,ct,))^2-1
     else
-        return coh
+        ket_index = (k1 == 0) ? fill(0,L) : vcat(fill(0, L - k1), [1], fill(-1, k1 - 1))
+        bra_index = (k2 == 0) ? fill(0,L) : vcat(fill(0, L - k2), [1], fill(-1, k2 - 1))
+        coh = conj(get_reduced_state(mps,ct,bra_index,i1)) * get_reduced_state(mps,ct,ket_index,i1)
+        if k1 == k2
+            tr_rho = trace_0(mps,ct,ket_index,i1)
+            return coh-tr_rho, tr_rho
+        else
+            return coh
+        end
     end
+    # println(ket_index,bra_index)
+
+    
 end
 
 
@@ -944,8 +960,8 @@ end
 
 """simplied version of get_coherence_matrix, without expanding a MPO for density matrix"""
 function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
-    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
-    # mps_abs= ct.mps
+    # mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
+    mps_abs= ct.mps
     L=length(mps_abs)
     coherence_matrix=zeros(L+1,L+1)
     fdw=zeros(L+1)
@@ -953,6 +969,7 @@ function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbond
         for j in 0:L
             # println(i,j)
             if i == j
+                print(i,j)
                 # @timeit to "same" begin
                 coherence_matrix[i+1,j+1], fdw[i+1] = l1_coherence_0(mps_abs,ct,i,j,i1)
                 # end
@@ -965,6 +982,13 @@ function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbond
         end
     end
     return coherence_matrix, fdw
+end
+
+function get_total_coherence_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
+    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
+    # mps_abs= ct.mps
+    L=length(mps_abs)
+    return l1_coherence_0(mps_abs,ct,L+1,L+1,i1)
 end
 
 """return the element-wise product of two MPS mps1, and mp2"""
