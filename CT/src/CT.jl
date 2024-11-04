@@ -933,8 +933,8 @@ function abs_mps(mps::MPS;tolerance::Real=1e-8, maxbonddim::Int=30)
 end
 
 function get_coherence_matrix(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
-    # mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
-    mps_abs= ct.mps
+    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
+    # mps_abs= ct.mps
     rho = get_DM(mps_abs)
     println(rho)
     L=length(rho)
@@ -960,8 +960,8 @@ end
 
 """simplied version of get_coherence_matrix, without expanding a MPO for density matrix"""
 function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
-    # mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
-    mps_abs= ct.mps
+    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
+    # mps_abs= ct.mps
     L=length(mps_abs)
     coherence_matrix=zeros(L+1,L+1)
     fdw=zeros(L+1)
