@@ -32,7 +32,7 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
     end
     # single
     # coh_mat, fdw = CT.get_coherence_matrix_0(ct,i,maxbonddim=60)
-    coh_mat = CT.get_total_coherence_0(ct,i,maxbonddim=60)
+    coh_mat = CT.get_total_coherence_0(ct,i,maxbonddim=30)
     # ,maxbonddim=60
     # return Dict("coh_mat"=>coh_mat,"fdw"=>fdw)
     return Dict("coh_mat"=>coh_mat)
