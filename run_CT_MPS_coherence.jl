@@ -31,7 +31,7 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
         # coh_mat[idx+1,:,:], fdw[idx+1,:] = CT.get_coherence_matrix(ct,i)
     end
     # single
-    coh_mat, fdw = CT.get_coherence_matrix(ct,i,maxbonddim=60)
+    coh_mat, fdw = CT.get_coherence_matrix_0(ct,i,maxbonddim=60)
     # ,maxbonddim=60
     return Dict("coh_mat"=>coh_mat,"fdw"=>fdw)
 end
