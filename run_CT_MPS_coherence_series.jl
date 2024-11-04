@@ -13,8 +13,8 @@ end
 function main()
     args = parse_my_args()
     args = split(args["params"],",")
-    for (p_ctrl,p_proj,L,seed) in Iterators.partition(args, 4)
-        main_interactive(parse(Int,L),parse(Float64,p_ctrl),parse(Float64,p_proj),parse(Int,seed))
+    for (p_ctrl,p_proj,L,maxbonddim,seed) in Iterators.partition(args, 5)
+        main_interactive(parse(Int,L),parse(Float64,p_ctrl),parse(Float64,p_proj),parse(Int,maxbonddim),parse(Int,seed))
     end
 end
 

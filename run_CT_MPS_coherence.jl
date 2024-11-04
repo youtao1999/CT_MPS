@@ -12,7 +12,7 @@ using ArgParse
 using Serialization
 """ compute domain wall as a function of t"""
 
-function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
+function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,maxbonddim::Int,seed::Int)
     ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=1//2^L)
     print("x0: ", ct.x0)
     # x0=1//2^(L÷2+1)
@@ -32,7 +32,7 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
     end
     # single
     # coh_mat, fdw = CT.get_coherence_matrix_0(ct,i,maxbonddim=60)
-    coh_mat = CT.get_total_coherence_0(ct,i,maxbonddim=30)
+    coh_mat = CT.get_total_coherence_0(ct,i,maxbonddim=maxbonddim)
     # ,maxbonddim=60
     # return Dict("coh_mat"=>coh_mat,"fdw"=>fdw)
     return Dict("coh_mat"=>coh_mat)
@@ -54,6 +54,10 @@ function parse_my_args()
         arg_type = Int
         default = 8
         help = "system size"
+        "--maxbonddim", "-m"
+        arg_type = Int
+        default = 30
+        help = "max bond dimension"
         "--seed", "-s"
         arg_type = Int
         default = 0
@@ -66,9 +70,9 @@ function main()
     println("Uses threads: ",BLAS.get_num_threads())
     println("Uses backends: ",BLAS.get_config())
     args = parse_my_args()
-    results = run_dw_t(args["L"], args["p_ctrl"], args["p_proj"], args["seed"])
+    results = run_dw_t(args["L"], args["p_ctrl"], args["p_proj"], args["maxbonddim"], args["seed"])
 
-    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"])_coherence.json"
+    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_mb$(args["maxbonddim"])_s$(args["seed"])_coherence.json"
     data_to_serialize = merge(results, Dict("args" => args))
     json_data = JSON.json(data_to_serialize)
     open(filename, "w") do f
@@ -76,11 +80,11 @@ function main()
     end
 end
 
-function main_interactive(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
+function main_interactive(L::Int,p_ctrl::Float64,p_proj::Float64,maxbonddim::Int,seed::Int)
     start_time = time()
-    args=Dict("L"=>L,"p_ctrl"=>p_ctrl,"p_proj"=>p_proj,"s"=>seed)
-    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["s"])_coherence.json"
-    results = run_dw_t(L, p_ctrl, p_proj, seed)
+    args=Dict("L"=>L,"p_ctrl"=>p_ctrl,"p_proj"=>p_proj,"maxbonddim"=>maxbonddim,"s"=>seed)
+    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_mb$(args["maxbonddim"])_s$(args["s"])_coherence.json"
+    results = run_dw_t(L, p_ctrl, p_proj, maxbonddim, seed)
 
     data_to_serialize = merge(results, Dict("args" => args))
     json_data = JSON.json(data_to_serialize)
@@ -88,7 +92,7 @@ function main_interactive(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int)
         write(f, json_data)
     end
     elapsed_time = time() - start_time
-    println("p_ctrl: ", args["p_ctrl"], " p_proj: ", p_proj, " L: ", L, " seed: ", seed)
+    println("p_ctrl: ", args["p_ctrl"], " p_proj: ", p_proj, " L: ", L, " maxbonddim: ", maxbonddim," seed: ", seed)
     println("Execution time: ", elapsed_time, " s")
 end
 if isdefined(Main, :PROGRAM_FILE) && abspath(PROGRAM_FILE) == @__FILE__
