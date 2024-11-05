@@ -21,7 +21,7 @@ mutable struct CT_MPS
     seed_vec::Union{Int,Nothing}
     seed_C::Union{Int,Nothing} # random seed for "circuit", i.e., choice of unitary (Bernoulli) and position of measurement (control)
     seed_m::Union{Int,Nothing} # random seed for "measurement outcome".
-    x0::Union{Rational{Int},Nothing}
+    x0::Union{Rational{Int},Rational{BigInt},Nothing}
     xj::Set
     _eps::Float64
     ancilla::Int
@@ -54,7 +54,7 @@ function CT_MPS(
     seed_vec::Union{Nothing,Int}=nothing,
     seed_C::Union{Nothing,Int}=nothing,
     seed_m::Union{Nothing,Int}=nothing,
-    x0::Union{Rational{Int},Nothing}=nothing,
+    x0::Union{Rational{Int},Rational{BigInt},Nothing}=nothing,
     xj::Set=Set([1 // 3, 2 // 3]),
     _eps::Float64=1e-10,
     ancilla::Int=0,
