@@ -918,17 +918,21 @@ function sum_of_norm_sample(rdm::MPO,inter::Bool)
     end
 end
 
-function abs_mps(mps::MPS;tolerance::Real=1e-8, maxbonddim::Int=30)
+function abs_mps(mps::MPS;tolerance::Real=1e-12, maxbonddim::Int=30,pivotpos::Int=0)
     L=length(mps)
     sites=siteinds(mps)
     mps_tci=TCI.TensorTrain(mps)
     localdims = fill(2, L)
     mps_abs_func(v) = abs(mps_tci(v))
     mps_abs_func_cache = TCI.CachedFunction{Float64}(mps_abs_func,localdims)
-    println("Start crossinterpolate")
-    initialpivots=[fill(1,L),[1,2,fill(1,L-2)...]] # this gives the max value of wave function
-    tci, _, _ = TCI.crossinterpolate2(Float64, mps_abs_func_cache, localdims, initialpivots; tolerance=tolerance, maxbonddim=maxbonddim,)
-    println("End crossinterpolate")
+    # println("Start crossinterpolate")
+    # initialpivots=[fill(1,L),[1,2,fill(1,L-2)...]] # this gives the max value of wave function
+    maxbasis=fill(1,L)
+    maxbasis[pivotpos]=2
+    # println(maxbasis)
+    initialpivots= TCI.optfirstpivot(mps_abs_func_cache, localdims, maxbasis)
+    tci, ranks, errors = TCI.crossinterpolate2(Float64, mps_abs_func_cache, localdims, [initialpivots]; tolerance=tolerance, maxbonddim=maxbonddim)
+    println("End crossinterpolate with error $(last(errors)) ranks $(last(ranks)) after $(length(errors)) iterations")
     return MPS(tci,sites=sites)
 end
 
@@ -985,7 +989,7 @@ function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbond
 end
 
 function get_total_coherence_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
-    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
+    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim, pivotpos=ct.phy_list[i1])
     # mps_abs= ct.mps
     L=length(mps_abs)
     return l1_coherence_0(mps_abs,ct,L+1,L+1,i1)
