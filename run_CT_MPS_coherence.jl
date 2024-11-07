@@ -12,15 +12,15 @@ using ArgParse
 using Serialization
 """ compute domain wall as a function of t"""
 
-function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,maxbonddim::Int,seed::Int)
+function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,maxbonddim::Int,seed::Int,t)
     ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=1//BigInt(2)^L)
     print("x0: ", ct.x0)
     # x0=1//2^(L÷2+1)
     # 1//2^L
     i=L
-    tf=(ct.ancilla ==0) ? 2*ct.L^2 : div(ct.L^2,2)
+    tf=(ct.ancilla ==0) ? t*ct.L^2 : div(ct.L^2,2)
     # temporal
-    # coh_mat=zeros(tf+1,L+1,L+1)
+    # coh_mat=zeros(tf+1)
     # fdw=zeros(tf+1,L+1)
     # coh_mat[1,:,:], fdw[1,:] = CT.get_coherence_matrix(ct,i)
 
@@ -31,11 +31,12 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,maxbonddim::Int,seed::I
         # coh_mat[idx+1,:,:], fdw[idx+1,:] = CT.get_coherence_matrix(ct,i)
     end
     # single
+    # return ct
     # coh_mat, fdw = CT.get_coherence_matrix_0(ct,i,maxbonddim=60)
-    coh_mat = CT.get_total_coherence_0(ct,i,maxbonddim=maxbonddim)
+    coh_mat, ranks, errors = CT.get_total_coherence_0(ct,i,maxbonddim=maxbonddim)
     # ,maxbonddim=60
     # return Dict("coh_mat"=>coh_mat,"fdw"=>fdw)
-    return Dict("coh_mat"=>coh_mat)
+    return Dict("coh_mat"=>coh_mat,"ranks"=>ranks,"errors"=>errors)
 end
 
 
