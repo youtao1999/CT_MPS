@@ -21,7 +21,7 @@ mutable struct CT_MPS
     seed_vec::Union{Int,Nothing}
     seed_C::Union{Int,Nothing} # random seed for "circuit", i.e., choice of unitary (Bernoulli) and position of measurement (control)
     seed_m::Union{Int,Nothing} # random seed for "measurement outcome".
-    x0::Union{Rational{Int},Nothing}
+    x0::Union{Rational{Int},Rational{BigInt},Nothing}
     xj::Set
     _eps::Float64
     ancilla::Int
@@ -34,8 +34,9 @@ mutable struct CT_MPS
     phy_ram::Vector{Int}
     ram_phy::Vector{Int}
     phy_list::Vector{Int}
-    _maxdim::Int
+    _maxdim0::Int
     _cutoff::Float64
+    _maxdim::Int
     mps::MPS
     vec_history::Vector{MPS}
     op_history::Vector{Vector{Any}}
@@ -53,13 +54,14 @@ function CT_MPS(
     seed_vec::Union{Nothing,Int}=nothing,
     seed_C::Union{Nothing,Int}=nothing,
     seed_m::Union{Nothing,Int}=nothing,
-    x0::Union{Rational{Int},Nothing}=nothing,
+    x0::Union{Rational{Int},Rational{BigInt},Nothing}=nothing,
     xj::Set=Set([1 // 3, 2 // 3]),
     _eps::Float64=1e-10,
     ancilla::Int=0,
     folded::Bool=false,
-    _maxdim::Int=10,
+    _maxdim0::Int=10,
     _cutoff::Float64=1e-10,
+    _maxdim::Int=typemax(Int),
     debug::Bool=false
     )
     rng = MersenneTwister(seed)
@@ -67,10 +69,10 @@ function CT_MPS(
     rng_C = seed_C === nothing ? rng : MersenneTwister(seed_C)
     rng_m = seed_m === nothing ? rng : MersenneTwister(seed_m)
     qubit_site, ram_phy, phy_ram, phy_list = _initialize_basis(L,ancilla,folded)
-    mps=_initialize_vector(L,ancilla,x0,folded,qubit_site,ram_phy,phy_ram,phy_list,rng_vec,_cutoff,_maxdim)
+    mps=_initialize_vector(L,ancilla,x0,folded,qubit_site,ram_phy,phy_ram,phy_list,rng_vec,_cutoff,_maxdim0)
     adder=[adder_MPO(i1,xj,qubit_site,L,phy_ram,phy_list) for i1 in 1:L]
     dw=[[dw_MPO(i1,xj,qubit_site,L,phy_ram,phy_list,order) for i1 in 1:L] for order in 1:2]
-    ct = CT_MPS(L, store_vec, store_op, store_prob, seed, seed_vec, seed_C, seed_m, x0, xj, _eps, ancilla, folded, rng, rng_vec, rng_C, rng_m, qubit_site, phy_ram, ram_phy, phy_list, _maxdim, _cutoff, mps, [],[],adder,dw,debug)
+    ct = CT_MPS(L, store_vec, store_op, store_prob, seed, seed_vec, seed_C, seed_m, x0, xj, _eps, ancilla, folded, rng, rng_vec, rng_C, rng_m, qubit_site, phy_ram, ram_phy, phy_list, _maxdim0, _cutoff, _maxdim, mps, [],[],adder,dw,debug)
     return ct
 end
 
@@ -98,14 +100,14 @@ function _initialize_basis(L,ancilla,folded)
     return qubit_site, ram_phy, phy_ram, phy_list
 end
 
-function _initialize_vector(L,ancilla,x0,folded,qubit_site,ram_phy,phy_ram,phy_list,rng_vec,_cutoff,_maxdim)
+function _initialize_vector(L,ancilla,x0,folded,qubit_site,ram_phy,phy_ram,phy_list,rng_vec,_cutoff,_maxdim0)
     if ancilla == 0
         if x0 !== nothing
             vec_int = dec2bin(x0, L)
             vec_int_pos = [string(s) for s in lpad(string(vec_int, base=2), L, "0")] # physical index
             return MPS(ComplexF64, qubit_site, [vec_int_pos[ram_phy[i]] for i in 1:L])
         else
-            return randomMPS(rng_vec, qubit_site, linkdims=_maxdim)
+            return randomMPS(rng_vec, qubit_site, linkdims=_maxdim0)
         end
     elseif ancilla ==1
         if x0 !== nothing
@@ -119,8 +121,8 @@ function _initialize_vector(L,ancilla,x0,folded,qubit_site,ram_phy,phy_ram,phy_l
             # The physical qubit of ancilla is always the last one
             # The ram position, depending on the folded or not, is either the first (folded) or the last (unfolded)
             
-            mps1 = randomMPS(rng_vec, ComplexF64, qubit_site[sort(phy_ram[phy_list])], linkdims=_maxdim)
-            mps0 = randomMPS(rng_vec, ComplexF64, qubit_site[sort(phy_ram[phy_list])], linkdims=_maxdim)
+            mps1 = randomMPS(rng_vec, ComplexF64, qubit_site[sort(phy_ram[phy_list])], linkdims=_maxdim0)
+            mps0 = randomMPS(rng_vec, ComplexF64, qubit_site[sort(phy_ram[phy_list])], linkdims=_maxdim0)
             mps1 -= inner(mps0, mps1) .* mps0
             mps1 = mps1 ./ norm(mps1)
             anc0 = MPS(qubit_site[[(phy_ram[L+1])]], ["0"])
@@ -140,7 +142,7 @@ apply the operator `op` to `mps`, the `op` should have indices of (i,j,k.. i',j'
 the orthogonalization center is at i
 index should be ram index
 """
-function apply_op!(mps::MPS, op::ITensor, cutoff::Float64)
+function apply_op!(mps::MPS, op::ITensor, cutoff::Float64, maxdim::Int)
     i_list = [parse(Int, replace(string(tags(inds(op)[i])[length(tags(inds(op)[i]))]), "n=" => "")) for i in 1:div(length(op.tensor.inds), 2)]
     sort!(i_list)
     # println(i_list)
@@ -159,7 +161,7 @@ function apply_op!(mps::MPS, op::ITensor, cutoff::Float64)
         for idx in i_list[1]:i_list[end]-1
             inds1 = (idx ==1) ? [siteind(mps,1)] : [findindex(mps[idx-1],lefttags), findindex(mps[idx],"Site")]
             lefttags=tags(linkind(mps,idx))
-            U, S, V = svd(mps_ij, inds1, cutoff=cutoff,lefttags=lefttags)
+            U, S, V = svd(mps_ij, inds1, cutoff=cutoff,lefttags=lefttags,maxdim=maxdim)
             mps[idx] = U
             mps_ij = S * V
         end
@@ -188,9 +190,9 @@ function S!(ct::CT_MPS, i::Int, rng::Random.AbstractRNG; builtin=false)
         U_4_tensor = ITensor(U_4, ct.qubit_site[ram_idx[1]], ct.qubit_site[ram_idx[2]], ct.qubit_site[ram_idx[1]]', ct.qubit_site[ram_idx[2]]')
         # return U_4_tensor
         if builtin
-            ct.mps=apply(U_4_tensor,ct.mps;cutoff=ct._cutoff)
+            ct.mps=apply(U_4_tensor,ct.mps;cutoff=ct._cutoff,maxdim=ct._maxdim)
         else
-            apply_op!(ct.mps, U_4_tensor,ct._cutoff)
+            apply_op!(ct.mps, U_4_tensor,ct._cutoff,ct._maxdim)
         end
 
         if ct.debug
@@ -206,9 +208,9 @@ end
 function control_map(ct::CT_MPS, n::Vector{Int}, i::Vector{Int})
     R!(ct, n, i)
     if ct.xj == Set([1 // 3, 2 // 3])
-        ct.mps=apply(ct.adder[i[1]],ct.mps;cutoff=ct._cutoff)
+        ct.mps=apply(ct.adder[i[1]],ct.mps;cutoff=ct._cutoff,maxdim=ct._maxdim)
         normalize!(ct.mps)
-        truncate!(ct.mps, cutoff=ct._cutoff)
+        truncate!(ct.mps, cutoff=ct._cutoff,maxdim=ct._maxdim)
     end
 end
 
@@ -247,7 +249,7 @@ function P!(ct::CT_MPS, n::Vector{Int}, i::Vector{Int})
         println("Projecting $(n) at Phy $(i)")
     end
     proj_op= projector(ct,n, i)
-    apply_op!(ct.mps, proj_op, ct._cutoff)
+    apply_op!(ct.mps, proj_op, ct._cutoff, ct._maxdim)
     if ct.debug
         println("norm is $(norm(ct.mps))")
     end
@@ -258,7 +260,7 @@ end
 """
 function X!(ct::CT_MPS, i::Int)
     X_op=ITensor([0 1+0im; 1+0im 0],ct.qubit_site[ct.phy_ram[ct.phy_list[i]]],ct.qubit_site[ct.phy_ram[ct.phy_list[i]]]')
-    apply_op!(ct.mps, X_op, ct._cutoff)
+    apply_op!(ct.mps, X_op, ct._cutoff, ct._maxdim)
     # normalize!(ct.mps)
 end
 
@@ -266,18 +268,51 @@ end
 """
 compute the entanglement entropy of 1...i, i+1...L (ram sites)
 """
-function von_Neumann_entropy(mps::MPS, i::Int)
+function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,postivedefinite=false)
     mps_ = orthogonalize(mps, i)
     # _,S = svd(mps_[i], (linkind(mps_, i-1), siteind(mps_,i)))
     _, S = svd(mps_[i], (linkind(mps_, i),))
-    SvN = 0.0
-    # print(S)
-    for n = 1:dim(S, 1)
-        p = S[n, n]^2
-        SvN -= p * log(p)
+    # SvN = 0.0
+    # for n = 1:dim(S, 1)
+    #     p = S[n, n]^2
+    #     SvN -= p * log(p)
+    # end
+    if postivedefinite
+        p=max.(diag(S),1e-16)
+    else
+        p=diag(S).^2
+    end
+    if n==1
+        SvN = -sum(p .* log.(p))
+    elseif n==0
+        SvN = log(length(p))
+    else
+        SvN = log(sum(p.^n)) / (1 - n)
     end
     return SvN
 end
+
+"""compute the 2nd Renyi entropy from definition  by tracing out the `region` (physical sites). """
+function Renyi_entropy(ct::CT_MPS,  region::Vector{Int})
+    # construct the density matrix from mps
+    rho = get_DM(ct.mps)
+    ram_idx=ct.phy_ram[region]
+    # tracing the other par of region
+    partial_trace!(rho, ram_idx)
+    # compute rho^2
+    rho2=rho_square(rho)
+    # take the trace of rho2
+    return -real(log(trace(rho2)))
+end
+
+"""compute mutual information based on 2nd Renyi entropy for region1 and region2 (physical sites)"""
+function mutual_information(ct::CT_MPS,region1::Vector{Int},region2::Vector{Int})
+    @assert isempty(intersect(region1, region2)) "Region 1 and 2 have overlapping elements!"
+
+    return Renyi_entropy(ct,region1)+Renyi_entropy(ct,region2)-Renyi_entropy(ct,vcat(region1,region2))
+end
+
+"""compute the mutual information from definition"""
 
 function mps_to_tensor(mps; array=false, vector=false, column_first=true)
     # psi = mps[1]
@@ -669,33 +704,57 @@ function get_reduced_DM(dm::MPO,ct::CT_MPS,ket_index::Vector{Int},bra_index::Vec
     return rdm
 end
 
+""" get reduced state"""
+function get_reduced_state(mps::MPS,ct::CT_MPS,index::Vector{Int},i1::Int)
+    V = ITensor(1.0)
+    for phy_idx in 1:ct.L
+        ram_idx= ct.phy_ram[mod(ct.phy_list[phy_idx] + i1-1  ,ct.L)+1]
+        ket_leg = ct.qubit_site[ram_idx]
+        if index[phy_idx] !=  -1
+            V *= mps[ram_idx]* state(ket_leg,index[phy_idx]+1)
+        else
+            V *= mps[ram_idx] * ITensor([1.,1.],ket_leg)
+        end
+    end
+    return V[1]
+end
+
+function get_norm_state(mps::MPS,ct::CT_MPS)
+    V = ITensor(1.0)
+    for idx in 1:ct.L
+        ket_leg = ct.qubit_site[idx]
+        V *= mps[idx] * ITensor([1.,1.],ket_leg)
+    end
+    return V[1]
+end
+
 function get_DM(mps::MPS)
     return outer(mps',mps)
 end
 
-function l1_coherence_2(rho::MPO,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
-    L=length(rho)
-    if k1==0
-        ket_index=fill(0,L)
-    else
-        ket_index=vcat(fill(0, L - k1), [1], fill(-1, k1 - 1))
-    end
+# function l1_coherence_2(rho::MPO,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
+#     L=length(rho)
+#     if k1==0
+#         ket_index=fill(0,L)
+#     else
+#         ket_index=vcat(fill(0, L - k1), [1], fill(-1, k1 - 1))
+#     end
 
-    if k2==0
-        bra_index = fill(0,L)
-    else
-        bra_index = vcat(fill(0, L - k2), [1], fill(-1, k2 - 1))
-    end
-    rdm = get_reduced_DM(rho,ct, ket_index, bra_index,i1)
-    if k1 ==k2
-        sum_=sum_of_norm(rdm,false)
-        tr_rho = trace(rdm)
-        intra_sum= (sum(length,siteinds(rdm)) < 44) ? sum_-tr_rho : sum_
-        return  intra_sum, tr_rho
-    else
-        return sum_of_norm(rdm,true)
-    end
-end
+#     if k2==0
+#         bra_index = fill(0,L)
+#     else
+#         bra_index = vcat(fill(0, L - k2), [1], fill(-1, k2 - 1))
+#     end
+#     rdm = get_reduced_DM(rho,ct, ket_index, bra_index,i1)
+#     if k1 ==k2
+#         sum_=sum_of_norm(rdm,false)
+#         tr_rho = trace(rdm)
+#         intra_sum= (sum(length,siteinds(rdm)) < 44) ? sum_-tr_rho : sum_
+#         return  intra_sum, tr_rho
+#     else
+#         return sum_of_norm(rdm,true)
+#     end
+# end
 
 function l1_coherence(rho::MPO,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
     L=length(rho)
@@ -720,6 +779,29 @@ function l1_coherence(rho::MPO,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
         return sum_of_norm_MPS(rdm)
     end
 end
+
+"""simplied version of l1_coherence"""
+function l1_coherence_0(mps::MPS,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
+    L = length(mps)
+    if k1 == k2 == L+1
+        # directly compute the total norm
+        return (get_norm_state(mps,ct,))^2-1
+    else
+        ket_index = (k1 == 0) ? fill(0,L) : vcat(fill(0, L - k1), [1], fill(-1, k1 - 1))
+        bra_index = (k2 == 0) ? fill(0,L) : vcat(fill(0, L - k2), [1], fill(-1, k2 - 1))
+        coh = conj(get_reduced_state(mps,ct,bra_index,i1)) * get_reduced_state(mps,ct,ket_index,i1)
+        if k1 == k2
+            tr_rho = trace_0(mps,ct,ket_index,i1)
+            return coh-tr_rho, tr_rho
+        else
+            return coh
+        end
+    end
+    # println(ket_index,bra_index)
+
+    
+end
+
 
 function sum_of_norm(rdm::MPO,inter)
     len_rdm= sum(length,siteinds(rdm)) 
@@ -757,6 +839,39 @@ function trace(rdm::MPO)
         end
     end
     return abs(scalar(prod(rdm)))
+end
+
+""" compute sum_xxx mps_{001...xxx} * conj(mps)_{001...xxx}"""
+function trace_0(mps::MPS,ct::CT_MPS,index::Vector{Int},i1::Int)
+    V = ITensor(1.0)
+    mps_c = mps'
+    for phy_idx in 1:ct.L
+        ram_idx= ct.phy_ram[mod(ct.phy_list[phy_idx] + i1-1  ,ct.L)+1]
+        ket_leg = ct.qubit_site[ram_idx]
+        if index[phy_idx] !=  -1
+            V *= mps[ram_idx] * state(ket_leg,index[phy_idx]+1)
+            V *= mps_c[ram_idx] * state(ket_leg',index[phy_idx]+1)
+        else
+            V *= mps[ram_idx] * mps_c[ram_idx] * delta(ket_leg,ket_leg')
+        end
+    end
+    return V[1]
+end
+
+        
+
+
+function partial_trace!(rdm::MPO,region::Vector{Int})
+    for i in region
+        if hastags(rdm[i],"Site")
+            rdm[i] = tr(rdm[i])
+        end
+    end
+    return rdm
+end
+
+function rho_square(rho::MPO)
+    return apply(rho,rho)
 end
 
 function sum_of_norm_loop(rdm::MPO)
@@ -802,26 +917,71 @@ function sum_of_norm_sample(rdm::MPO,inter::Bool)
     end
 end
 
-function abs_mps(mps::MPS;tolerance::Real=1e-8, maxbonddim::Int=30)
+function abs_mps(mps::MPS;tolerance::Real=1e-12, maxbonddim::Int=30,pivotpos::Int=1,normalized::Bool=false)
     L=length(mps)
     sites=siteinds(mps)
+    if normalized
+        mps = copy(mps)
+        for i in 1:L
+            mps[i]=mps[i]/sqrt(2)
+        end
+    end
     mps_tci=TCI.TensorTrain(mps)
+
     localdims = fill(2, L)
     mps_abs_func(v) = abs(mps_tci(v))
     mps_abs_func_cache = TCI.CachedFunction{Float64}(mps_abs_func,localdims)
-    initialpivots=[fill(1,L),[1,2,fill(1,L-2)...]] # this gives the max value of wave function
-    tci, _, _ = TCI.crossinterpolate2(Float64, mps_abs_func_cache, localdims, initialpivots; tolerance=tolerance, maxbonddim=maxbonddim,)
-    return MPS(tci,sites=sites)
+    # println("Start crossinterpolate")
+    # initialpivots=[fill(1,L),[1,2,fill(1,L-2)...]] # this gives the max value of wave function
+    maxbasis=fill(1,L)
+    maxbasis[pivotpos]=2
+    # println(maxbasis)
+    initialpivots= TCI.optfirstpivot(mps_abs_func_cache, localdims, maxbasis)
+    tci, ranks, errors = TCI.crossinterpolate2(Float64, mps_abs_func_cache, localdims, [initialpivots]; tolerance=tolerance, maxbonddim=maxbonddim,normalizeerror=false,verbosity=0,pivottolerance=1e-20,maxnglobalpivot=20,nsearchglobalpivot =20)
+    println("End crossinterpolate with error $(last(errors)) ranks $(last(ranks)) after $(length(errors)) iterations")
+    
+    return tci, ranks, errors
+    # return MPS(tci,sites=sites)
 end
+
+function abs_mpo(mps::MPS;tolerance::Real=1e-12, maxbonddim::Int=30,pivotpos::Int=1)
+    L=length(mps)
+    sites=siteinds(mps)
+    mps_tci=TCI.TensorTrain(mps)
+    localdims = fill(2, 2*L)
+    mps_abs_func(v) = abs(mps_tci(v[1:L])*mps_tci(v[L+1:2*L]))
+    mps_abs_func_cache = TCI.CachedFunction{Float64}(mps_abs_func,localdims)
+    maxbasis=fill(1,2*L)
+    maxbasis[pivotpos]=2
+    maxbasis[L+pivotpos]=2
+    initialpivots= TCI.optfirstpivot(mps_abs_func_cache, localdims, maxbasis)
+    tci, ranks, errors = TCI.crossinterpolate2(Float64, mps_abs_func_cache, localdims, [initialpivots]; tolerance=tolerance, maxbonddim=maxbonddim)
+    println("End crossinterpolate with error $(last(errors)) ranks $(last(ranks)) after $(length(errors)) iterations")
+    return tci
+end
+
+# function sum_abs_mps(mps::MPS;tolerance::Real=1e-12, maxbonddim::Int=30,pivotpos::Int=0)
+#     L=length(mps)
+#     # sites=siteinds(mps)
+#     mps_tci=TCI.TensorTrain(mps)
+#     localdims = fill(2, L)
+#     mps_abs_func(v) = abs(mps_tci(v))
+#     mps_abs_func_cache = TCI.CachedFunction{Float64}(mps_abs_func,localdims)
+#     I = TCI.integrate(Float64, mps_abs_func_cache, fill(1, 2*L), fill(2, 2*L); GKorder=15, tolerance=tolerance)
+#     return I
+# end
 
 function get_coherence_matrix(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
     mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
+    # mps_abs= ct.mps
     rho = get_DM(mps_abs)
+    println(rho)
     L=length(rho)
     coherence_matrix=zeros(L+1,L+1)
     fdw=zeros(L+1)
     for i in 0:L
         for j in 0:L
+            # println(i,j)
             if i == j
                 # @timeit to "same" begin
                 coherence_matrix[i+1,j+1], fdw[i+1] = l1_coherence(rho,ct,i,j,i1)
@@ -835,6 +995,41 @@ function get_coherence_matrix(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddi
         end
     end
     return coherence_matrix, fdw
+end
+
+"""simplied version of get_coherence_matrix, without expanding a MPO for density matrix"""
+function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
+    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
+    # mps_abs= ct.mps
+    L=length(mps_abs)
+    coherence_matrix=zeros(L+1,L+1)
+    fdw=zeros(L+1)
+    for i in 0:L
+        for j in 0:L
+            # println(i,j)
+            if i == j
+                print(i,j)
+                # @timeit to "same" begin
+                coherence_matrix[i+1,j+1], fdw[i+1] = l1_coherence_0(mps_abs,ct,i,j,i1)
+                # end
+            else
+                # @timeit to "different" begin
+                coherence_matrix[i+1,j+1] = l1_coherence_0(mps_abs,ct,i,j,i1)
+                coherence_matrix[j+1,i+1] = coherence_matrix[i+1,j+1]
+                # end
+            end
+        end
+    end
+    return coherence_matrix, fdw
+end
+
+function get_total_coherence_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
+    # mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim, pivotpos=ct.phy_list[i1])
+    # # mps_abs= ct.mps
+    # L=length(mps_abs)
+    # return l1_coherence_0(mps_abs,ct,L+1,L+1,i1)
+    tci, ranks, errors = abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim, pivotpos=ct.phy_list[i1])
+    return sum(tci)^2-1, ranks[end], errors[end]
 end
 
 """return the element-wise product of two MPS mps1, and mp2"""
@@ -903,7 +1098,7 @@ end
     
 
 function test_profiler()
-    ct=CT_MPS(L=4,seed=1,folded=true,store_op=false,store_vec=false,ancilla=0,_maxdim=6,xj=Set([0]),)
+    ct=CT_MPS(L=4,seed=1,folded=true,store_op=false,store_vec=false,ancilla=0,_maxdim0=6,xj=Set([0]),)
     dm = get_DM(ct.mps)
     coherence_matrix, fdw=get_coherence_matrix(dm,ct)
     # println("Timer outputs:")
