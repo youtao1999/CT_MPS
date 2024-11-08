@@ -313,8 +313,7 @@ end
 # end
 """randomly apply control or Bernoulli map to physical site i (the left leg of op)
 """
-function random_control!(ct::CT_MPS, i::Int, p_ctrl, p_proj)
-    
+function random_control!(ct::CT_MPS, i::Int, p_ctrl::Float64, p_proj::Float64)
     op_l=[]
     p_0=-1.  # -1 for not applicable because of Bernoulli map
     if rand(ct.rng_C) < p_ctrl
