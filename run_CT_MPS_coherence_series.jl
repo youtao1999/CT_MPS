@@ -23,4 +23,4 @@ if isdefined(Main, :PROGRAM_FILE) && abspath(PROGRAM_FILE) == @__FILE__
 end
 
 
-# julia run_CT_MPS_coherence_series.jl --params "0.5,0.0,40,60,6,258"
+# julia run_CT_MPS_coherence_series.jl --params "0.5,0.0,30,-1,2,784"

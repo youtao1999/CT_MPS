@@ -1023,6 +1023,7 @@ function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbond
     return coherence_matrix, fdw
 end
 
+"""directly obtain the total coherence using TCI"""
 function get_total_coherence_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
     # mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim, pivotpos=ct.phy_list[i1])
     # # mps_abs= ct.mps
@@ -1030,6 +1031,15 @@ function get_total_coherence_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbondd
     # return l1_coherence_0(mps_abs,ct,L+1,L+1,i1)
     tci, ranks, errors = abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim, pivotpos=ct.phy_list[i1])
     return sum(tci)^2-1, ranks[end], errors[end]
+end
+
+"""directly obtain the total coherence by converting to dense"""
+function get_total_coherence_dense_0(ct::CT_MPS)
+    # mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim, pivotpos=ct.phy_list[i1])
+    # # mps_abs= ct.mps
+    # L=length(mps_abs)
+    # return l1_coherence_0(mps_abs,ct,L+1,L+1,i1)
+    return real(sum((abs.(prod(ct.mps))))^2-1)
 end
 
 """return the element-wise product of two MPS mps1, and mp2"""

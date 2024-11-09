@@ -33,10 +33,14 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,maxbonddim::Int,t,seed:
     # single
     # return ct
     # coh_mat, fdw = CT.get_coherence_matrix_0(ct,i,maxbonddim=60)
-    coh_mat, ranks, errors = CT.get_total_coherence_0(ct,i,maxbonddim=maxbonddim)
-    # ,maxbonddim=60
-    # return Dict("coh_mat"=>coh_mat,"fdw"=>fdw)
-    return Dict("coh_mat"=>coh_mat,"ranks"=>ranks,"errors"=>errors)
+
+    # using TCI
+    # coh_mat, ranks, errors = CT.get_total_coherence_0(ct,i,maxbonddim=maxbonddim)
+    # return Dict("coh_mat"=>coh_mat,"ranks"=>ranks,"errors"=>errors)
+
+    # using dense
+    coh_mat = CT.get_total_coherence_dense_0(ct)
+    return Dict("coh_mat"=>coh_mat)
 end
 
 
