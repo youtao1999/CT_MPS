@@ -1,4 +1,4 @@
-include("run_CT_shots.jl")
+include("run_CT_MPS_shots.jl")
 
 function parse_my_args()
     s = ArgParseSettings()
