@@ -480,6 +480,15 @@ function ZZ(ct::CT_MPS)
     return real(-inner(ct.mps', zz, ct.mps)) * 4 / ct.L
 end
 
+function bitstring_sample(ct::CT_MPS)
+    bitstring = sample!(ct.rng_m,ct.mps)
+    return bitstring
+end
+
+function Z_bitstring(bitstring::Vector{Int})
+    return sum(1 .-2*(bitstring.-1))/length(bitstring)
+end
+
 function mps_element(mps::MPS, x::String)
     @assert length(x) == length(mps)
     x = [string(s) for s in x]
