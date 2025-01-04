@@ -12,3 +12,4 @@ obs-del
 .julia
 .condor_creds
 .gwms.d
+*.zip

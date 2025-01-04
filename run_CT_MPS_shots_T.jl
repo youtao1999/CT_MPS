@@ -34,15 +34,15 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed_C::Int,seed_m::Int
     tf=(ct.ancilla ==0) ? 2*ct.L^2 : div(ct.L^2,2)
     # dw_list=zeros(tf+1,2)
     # dw_list[1,:]=collect(CT.dw(ct,1))
-    O_list=zeros(tf+1,2)
-    O_list[1,:]=CT.Z_bitstring(CT.bitstring_sample(ct))
+    O_list=zeros(tf+1)
+    O_list[1]=CT.Z_bitstring(CT.bitstring_sample(ct))
     # Oi_list=zeros(tf+1,ct.L)
     # Oi_list[1,:]=circshift(CT.Zi(ct),-i)
     
     for idx in 1:tf
         i=CT.random_control!(ct,i,p_ctrl,p_proj)
         # dw_list[idx+1,:]=collect(CT.dw(ct,(i%ct.L)+1))
-        O_list[idx+1,:]=CT.Z_bitstring(CT.bitstring_sample(ct))
+        O_list[idx+1]=CT.Z_bitstring(CT.bitstring_sample(ct))
         # Oi_list[idx+1,:]=circshift(CT.Zi(ct),-i)
     end
     # O1=CT.Z(ct)
