@@ -10,8 +10,8 @@ params_list=[
 ({'nu':0,'de':1,},
 {
 # 'p_ctrl':[.47,.49,.51,.53],
-# 'p_ctrl':[.6],
-'p_ctrl':[0.4,0.45,0.47,0.49,0.5,0.51,0.53,0.55,0.6],
+'p_ctrl':[.6],
+# 'p_ctrl':[0.4,0.45,0.47,0.49,0.5,0.51,0.53,0.55,0.6],
 # 'p_ctrl':[0.1],
 'p_proj':np.linspace(0.0,0.0,1),
 'sC':np.arange(0,500),
@@ -58,32 +58,35 @@ def traj_qvar(df,L,p_ctrl,sC):
 
     return mask_traj_0,mask_fixed_point_traj, mask_qvar_0,mask_fixed_point_qvar
 
+def ratio(mask_0,mask_fixed_point,L):
+    return (np.vstack(mask_0) & np.vstack(mask_fixed_point))[:,L**2:].sum() / np.vstack(mask_0)[:,L**2:].sum()
 
 
-mask_traj_0_dict={}
-mask_fixed_point_traj_dict={}
-mask_qvar_0_dict={}
-mask_fixed_point_qvar_dict={}
+# mask_traj_0_dict={}
+# mask_fixed_point_traj_dict={}
+# mask_qvar_0_dict={}
+# mask_fixed_point_qvar_dict={}
+ratio_traj={}
+ratio_qvar={}
 for p in tqdm(params_list[0][1]['p_ctrl']):
     for L in params_list[0][1]['L']:
         print(p,L)
-        mask_traj_0_dict[(p,L)]=[]
-        mask_fixed_point_traj_dict[(p,L)]=[]
-        mask_qvar_0_dict[(p,L)]=[]
-        mask_fixed_point_qvar_dict[(p,L)]=[]
+        mask_traj_0_dict_=[]
+        mask_fixed_point_traj_dict_=[]
+        mask_qvar_0_dict_=[]
+        mask_fixed_point_qvar_dict_=[]
         for sC in range((params_list[0][1]['sC']).shape[0]):
             try:
                 mask_traj_0,mask_fixed_point_traj,mask_qvar_0,mask_fixed_point_qvar=traj_qvar(df_MPS_0_T_DW,L=L,p_ctrl=p,sC=sC)
-                mask_traj_0_dict[(p,L)].append(mask_traj_0)
-                mask_fixed_point_traj_dict[(p,L)].append(mask_fixed_point_traj)
-                mask_qvar_0_dict[(p,L)].append(mask_qvar_0)
-                mask_fixed_point_qvar_dict[(p,L)].append(mask_fixed_point_qvar)
+
+                mask_traj_0_dict_.append(mask_traj_0)
+                mask_fixed_point_traj_dict_.append(mask_fixed_point_traj)
+                mask_qvar_0_dict_.append(mask_qvar_0)
+                mask_fixed_point_qvar_dict_.append(mask_fixed_point_qvar)
             except:
                 pass
-        # mask_traj_0_dict[(p,L)]=np.array(mask_traj_0_dict[(p,L)])
-        # mask_fixed_point_traj_dict[(p,L)]=np.array(mask_fixed_point_traj_dict[(p,L)])
-        # mask_qvar_0_dict[(p,L)]=np.array(mask_qvar_0_dict[(p,L)])
-        # mask_fixed_point_qvar_dict[(p,L)]=np.array(mask_fixed_point_qvar_dict[(p,L)])
+        ratio_traj[p,L]=ratio(mask_traj_0_dict_,mask_fixed_point_traj_dict_,L)
+        ratio_qvar[p,L]=ratio(mask_qvar_0_dict_,mask_fixed_point_qvar_dict_,L)
 
 with open(f'traj_state_L{L}.pickle','wb') as f:
-    pickle.dump([mask_traj_0_dict,mask_fixed_point_traj_dict,mask_qvar_0_dict,mask_fixed_point_qvar_dict],f)
+    pickle.dump([ratio_traj,ratio_qvar],f)
