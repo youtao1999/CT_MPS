@@ -25,8 +25,8 @@ for fixed_params,vary_params in params_list:
     data_MPS_0_T_DW_dict=generate_params(
         fixed_params=fixed_params,
         vary_params=vary_params,
-        # fn_template='MPS_({nu},{de})_L{L}_pctrl{p_ctrl:.3f}_pproj{p_proj:.3f}_sC{sC}_sm{sm}_x01_DW_T.json',
-        fn_template='MPS_({nu},{de})_L{L}_pctrl{p_ctrl:.3f}_pproj{p_proj:.3f}_sC{sC}_sm{sm}_O_T.json',
+        fn_template='MPS_({nu},{de})_L{L}_pctrl{p_ctrl:.3f}_pproj{p_proj:.3f}_sC{sC}_sm{sm}_x01_DW_T.json',
+        # fn_template='MPS_({nu},{de})_L{L}_pctrl{p_ctrl:.3f}_pproj{p_proj:.3f}_sC{sC}_sm{sm}_O_T.json',
         fn_dir_template='/MPS_0-1_C_m_x01_T',
         input_params_template='',
         load_data=load_zip_json,
@@ -36,9 +36,9 @@ for fixed_params,vary_params in params_list:
         data_dict={'fn':set()},
         # zip_fn='/home/jake/Data/MPS_0-1_C_m_x01_T.zip'  
         # zip_fn='./MPS_0-1_C_m_x01_T.zip'  
-        # zip_fn=f'./MPS_0-1_C_m_x01_T_L{L}.zip'  
+        zip_fn=f'./MPS_0-1_C_m_x01_T_L{L}.zip'  
         # zip_fn=f'./MPS_0-1_C_m_O_T_L{L}.zip'  
-        zip_fn=f'./MPS_0-1_shots_L{L}.zip' 
+        # zip_fn=f'./MPS_0-1_shots_L{L}.zip' 
     )
 df_MPS_0_T_DW=convert_pd(data_MPS_0_T_DW_dict,names=['Metrics','sm','sC','p_ctrl','L','p_proj',])
 
