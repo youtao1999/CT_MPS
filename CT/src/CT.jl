@@ -1193,14 +1193,13 @@ function bipartite_mutual_information_self_average(ct::CT_MPS,n::Int;tolerance::
     regionB = regionA .+ ct.L÷2
     MI = zeros(ct.L÷2)
     for i in 1:(ct.L÷2)
-        println(i)
         flush(stdout)
         regionA_=mod.((regionA .+ (i-2)),ct.L) .+1
         regionB_=mod.((regionB .+ (i-2)),ct.L) .+1
         # println(regionA_," ",regionB_)
         MI[i] = bipartite_mutual_information(ct,regionA_,regionB_,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
     end
-    return MI
+    return sum(MI)/length(MI)
 end
 
 
