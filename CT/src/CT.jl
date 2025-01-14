@@ -265,32 +265,32 @@ function X!(ct::CT_MPS, i::Int)
 end
 
 
-"""
-compute the entanglement entropy of 1...i, i+1...L (ram sites)
-"""
-function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,postivedefinite=false)
-    mps_ = orthogonalize(mps, i)
-    # _,S = svd(mps_[i], (linkind(mps_, i-1), siteind(mps_,i)))
-    _, S = svd(mps_[i], (linkind(mps_, i),))
-    # SvN = 0.0
-    # for n = 1:dim(S, 1)
-    #     p = S[n, n]^2
-    #     SvN -= p * log(p)
-    # end
-    if postivedefinite
-        p=max.(diag(S),1e-16)
-    else
-        p=diag(S).^2
-    end
-    if n==1
-        SvN = -sum(p .* log.(p))
-    elseif n==0
-        SvN = log(length(p))
-    else
-        SvN = log(sum(p.^n)) / (1 - n)
-    end
-    return SvN
-end
+# """
+# compute the entanglement entropy of 1...i, i+1...L (ram sites)
+# """
+# function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,postivedefinite=false)
+#     mps_ = orthogonalize(mps, i)
+#     # _,S = svd(mps_[i], (linkind(mps_, i-1), siteind(mps_,i)))
+#     _, S = svd(mps_[i], (linkind(mps_, i),))
+#     # SvN = 0.0
+#     # for n = 1:dim(S, 1)
+#     #     p = S[n, n]^2
+#     #     SvN -= p * log(p)
+#     # end
+#     if postivedefinite
+#         p=max.(diag(S),1e-16)
+#     else
+#         p=diag(S).^2
+#     end
+#     if n==1
+#         SvN = -sum(p .* log.(p))
+#     elseif n==0
+#         SvN = log(length(p))
+#     else
+#         SvN = log(sum(p.^n)) / (1 - n)
+#     end
+#     return SvN
+# end
 
 """compute the 2nd Renyi entropy from definition  by tracing out the `region` (physical sites). """
 function Renyi_entropy(ct::CT_MPS,  region::Vector{Int})
@@ -1114,7 +1114,95 @@ function sqrt_mps_inverse(mps::MPS,eps::Float64=1e-5,maxiter::Int=100)
     return elementwise_product(x,mps)
 end
 
-    
+function get_element_rho(mps::MPS,site::Vector{Index{Int64}},trace_idx::Set{Int64},v::Vector{Int64})
+    L=length(mps)
+    L_idx = length(v)÷2
+    V = ITensor(1.)
+    v_idx =1
+    for i in 1:L
+        V *= mps[i]
+        V *= conj(mps[i])'
+        if i in trace_idx
+            V *= delta(site[i],site[i]')
+        else
+            V *= state(site[i],v[v_idx])
+            V *= state(site[i]',v[v_idx+L_idx])
+            v_idx += 1
+        end
+    end
+    return scalar(V)
+end 
+
+
+function mpo_to_mps(mps::MPS,site::Vector{Index{Int64}},trace_idx::Set{Int64};pivotpos::Int=1,tolerance::Real=1e-12,maxbonddim::Int=100)
+    # sites_rho=[x[1] for x in siteinds(rho,plev=0) if length(x)!=0]
+    # sites_rho_=[prime(x) for x in sites_rho]
+    # sites_mps=vcat(sites_rho,sites_rho_)
+    L= length(mps)
+    L_idx = (L-length(trace_idx))*2
+    localdims = fill(2, L_idx)
+    get_element_rho_func = v -> get_element_rho(mps,site,trace_idx,v)
+
+    maxbasis=fill(1,L_idx)
+    maxbasis[pivotpos]=2
+
+    initialpivots= TCI.optfirstpivot(get_element_rho_func, localdims, maxbasis)
+    tci, ranks, errors = TCI.crossinterpolate2(ComplexF64, get_element_rho_func, localdims, [initialpivots],tolerance=tolerance, maxbonddim=maxbonddim,normalizeerror=false,verbosity=0,pivottolerance=1e-20,maxnglobalpivot=20,nsearchglobalpivot =20)
+
+    return tci, ranks, errors
+end
+
+function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,positivedefinite=false,threshold::Float64=1e-16)
+    mps_ = orthogonalize(mps, i)
+    _, S = svd(mps_[i], (linkind(mps_, i),))
+    if positivedefinite
+        p=max.(diag(S),threshold)
+    else
+        p=max.(diag(S),threshold) .^2
+    end
+    if n==1
+        SvN = -sum(p .* log.(p))
+    elseif n==0
+        SvN = log(length(p))
+    else
+        SvN = log(sum(p.^n)) / (1 - n)
+    end
+    return SvN
+end
+
+function von_Neumann_entropy_TCI(ct::CT_MPS, region::Vector{Int} ,n::Int; tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16)
+    region=Set(ct.phy_ram[region])
+    tci, ranks, errors = mpo_to_mps(ct.mps,ct.qubit_site,region,tolerance=tolerance,maxbonddim=maxbonddim)
+    return CT.von_Neumann_entropy(MPS(tci),length(tci)÷2,n=n,positivedefinite=true,threshold=threshold)
+end
+
+"""mutual information between any two region A and B for Renyi index n"""
+function bipartite_mutual_information(ct::CT_MPS,regionA::Vector{Int},regionB::Vector{Int},n::Int;tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16)
+    SA = von_Neumann_entropy_TCI(ct,regionA,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
+    println("SA: ",SA)
+    SB = von_Neumann_entropy_TCI(ct,regionB,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
+    println("SB: ",SB)
+    regionAB = vcat(regionA,regionB)
+    SAB = von_Neumann_entropy_TCI(ct,regionAB,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
+    println("SAB: ",SAB)
+    return SA+SB-SAB
+end
+
+function bipartite_mutual_information_self_average(ct::CT_MPS,n::Int;tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16)
+    regionA = collect(1:ct.L÷8) 
+    regionB = regionA .+ ct.L÷2
+    MI = zeros(ct.L÷2)
+    for i in 1:(ct.L÷2)
+        println(i)
+        flush(stdout)
+        regionA_=mod.((regionA .+ (i-2)),ct.L) .+1
+        regionB_=mod.((regionB .+ (i-2)),ct.L) .+1
+        # println(regionA_," ",regionB_)
+        MI[i] = bipartite_mutual_information(ct,regionA_,regionB_,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
+    end
+    return MI
+end
+
 
 function test_profiler()
     ct=CT_MPS(L=4,seed=1,folded=true,store_op=false,store_vec=false,ancilla=0,_maxdim0=6,xj=Set([0]),)
@@ -1123,9 +1211,6 @@ function test_profiler()
     # println("Timer outputs:")
     # show(to)
 end
-
-# function all_one_mps()
-
 
 greet() = print("Hello World! How are 11?")
 
