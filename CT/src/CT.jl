@@ -1179,12 +1179,12 @@ end
 """mutual information between any two region A and B for Renyi index n"""
 function bipartite_mutual_information(ct::CT_MPS,regionA::Vector{Int},regionB::Vector{Int},n::Int;tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16)
     SA = von_Neumann_entropy_TCI(ct,regionA,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
-    println("SA: ",SA)
+    # println("SA: ",SA)
     SB = von_Neumann_entropy_TCI(ct,regionB,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
-    println("SB: ",SB)
+    # println("SB: ",SB)
     regionAB = vcat(regionA,regionB)
     SAB = von_Neumann_entropy_TCI(ct,regionAB,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
-    println("SAB: ",SAB)
+    # println("SAB: ",SAB)
     return SA+SB-SAB
 end
 
