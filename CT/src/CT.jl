@@ -1152,9 +1152,12 @@ function mpo_to_mps(mps::MPS,site::Vector{Index{Int64}},trace_idx::Set{Int64};pi
     return tci, ranks, errors
 end
 
-function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,positivedefinite=false,threshold::Float64=1e-16)
+function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,positivedefinite=false,threshold::Float64=1e-16,sv=false)
     mps_ = orthogonalize(mps, i)
     _, S = svd(mps_[i], (linkind(mps_, i),))
+    if sv
+        return array(diag(S))
+    end
     if positivedefinite
         p=max.(diag(S),threshold)
     else
@@ -1170,36 +1173,54 @@ function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,positivedefinite=false,t
     return SvN
 end
 
-function von_Neumann_entropy_TCI(ct::CT_MPS, region::Vector{Int} ,n::Int; tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16)
+function von_Neumann_entropy_TCI(ct::CT_MPS, region::Vector{Int} ,n::Int; tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16,sv::Bool=false)
     region=Set(ct.phy_ram[region])
     tci, ranks, errors = mpo_to_mps(ct.mps,ct.qubit_site,region,tolerance=tolerance,maxbonddim=maxbonddim)
-    return CT.von_Neumann_entropy(MPS(tci),length(tci)÷2,n=n,positivedefinite=true,threshold=threshold)
+    return CT.von_Neumann_entropy(MPS(tci),length(tci)÷2,n=n,positivedefinite=true,threshold=threshold,sv=sv)
 end
 
 """mutual information between any two region A and B for Renyi index n"""
-function bipartite_mutual_information(ct::CT_MPS,regionA::Vector{Int},regionB::Vector{Int},n::Int;tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16)
-    SA = von_Neumann_entropy_TCI(ct,regionA,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
+function bipartite_mutual_information(ct::CT_MPS,regionA::Vector{Int},regionB::Vector{Int},n::Int;tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16,sv::Bool=false)
+    SA = von_Neumann_entropy_TCI(ct,regionA,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold,sv=sv)
     # println("SA: ",SA)
-    SB = von_Neumann_entropy_TCI(ct,regionB,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
+    SB = von_Neumann_entropy_TCI(ct,regionB,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold,sv=sv)
     # println("SB: ",SB)
     regionAB = vcat(regionA,regionB)
-    SAB = von_Neumann_entropy_TCI(ct,regionAB,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
+    SAB = von_Neumann_entropy_TCI(ct,regionAB,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold,sv=sv)
     # println("SAB: ",SAB)
-    return SA+SB-SAB
+    if sv
+        return SA,SB,SAB
+    else
+        return SA+SB-SAB
+    end
 end
 
-function bipartite_mutual_information_self_average(ct::CT_MPS,n::Int;tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16)
+function bipartite_mutual_information_self_average(ct::CT_MPS,n::Int;tolerance::Real=1e-12,maxbonddim::Int=100,threshold::Float64=1e-16,sv::Bool=false)
     regionA = collect(1:ct.L÷8) 
     regionB = regionA .+ ct.L÷2
     MI = zeros(ct.L÷2)
+    SA_sv = []
+    SB_sv = []
+    SAB_sv = []
     for i in 1:(ct.L÷2)
-        flush(stdout)
         regionA_=mod.((regionA .+ (i-2)),ct.L) .+1
         regionB_=mod.((regionB .+ (i-2)),ct.L) .+1
         # println(regionA_," ",regionB_)
-        MI[i] = bipartite_mutual_information(ct,regionA_,regionB_,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold)
+        if sv
+            sA, sB, sAB = bipartite_mutual_information(ct,regionA_,regionB_,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold,sv=sv)
+            push!(SA_sv,sA)
+            push!(SB_sv,sB)
+            push!(SAB_sv,sAB)
+        else
+            MI[i] = bipartite_mutual_information(ct,regionA_,regionB_,n,tolerance=tolerance,maxbonddim=maxbonddim,threshold=threshold,sv=sv)
+        end
     end
-    return sum(MI)/length(MI)
+    if sv
+        return SA_sv, SB_sv, SAB_sv
+    else
+        return sum(MI)/length(MI)
+    end
+
 end
 
 
