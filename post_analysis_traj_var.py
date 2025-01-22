@@ -20,7 +20,9 @@ params_list=[
 }
 ),
 ]
-
+ob="O"
+ob1=ob+'1'
+ob2=ob+'2'
 for fixed_params,vary_params in params_list:
     data_MPS_0_T_DW_dict=generate_params(
         fixed_params=fixed_params,
@@ -36,21 +38,26 @@ for fixed_params,vary_params in params_list:
         data_dict={'fn':set()},
         # zip_fn='/home/jake/Data/MPS_0-1_C_m_x01_T.zip'  
         # zip_fn='./MPS_0-1_C_m_x01_T.zip'  
-        zip_fn=f'./MPS_0-1_C_m_x01_T_L{L}.zip'  
+        # zip_fn=f'./MPS_0-1_C_m_x01_T_L{L}.zip'
+        zip_fn=f'/home/jake/Data/MPS_0-1_C_m_x01_T_L{L}.zip'  
         # zip_fn=f'./MPS_0-1_C_m_O_T_L{L}.zip'  
         # zip_fn=f'./MPS_0-1_shots_L{L}.zip' 
     )
 df_MPS_0_T_DW=convert_pd(data_MPS_0_T_DW_dict,names=['Metrics','sm','sC','p_ctrl','L','p_proj',])
 
+# def trajvar(df,L,p_ctrl,sC):
+#     data=df.xs(L,level='L').xs(p_ctrl,level='p_ctrl').xs(0.0,level='p_proj').xs(sC,level='sC')
+
+#     # single=[data.xs(sm,level='sm').loc['DW1']['observations'] for sm in range((params_list[0][1]['sm']).shape[0])]
+#     single=[data.xs(sm,level='sm').loc[ob1]['observations'] for sm in range((params_list[0][1]['sm']).shape[0])]
+
+#     return np.array(single).var(axis=0)
+
 def trajvar(df,L,p_ctrl,sC):
-    data=df.xs(L,level='L').xs(p_ctrl,level='p_ctrl').xs(0.0,level='p_proj').xs(sC,level='sC')
-
-    # single=[data.xs(sm,level='sm').loc['DW1']['observations'] for sm in range((params_list[0][1]['sm']).shape[0])]
-    single=[data.xs(sm,level='sm').loc['O1']['observations'] for sm in range((params_list[0][1]['sm']).shape[0])]
-
-    return np.array(single).var(axis=0)
-
-
+    data = df['observations'].xs(sC,level='sC').xs(p_ctrl,level='p_ctrl').xs(0.0,level='p_proj').xs(L,level='L')
+    data_DW1=np.stack(data.xs(ob1,level='Metrics'))
+    sigma_mc=data_DW1.var(axis=0)
+    return sigma_mc
 
 traj_var_dw_dict={}
 traj_var_dw_sem_dict={}
@@ -70,5 +77,6 @@ for p in tqdm(params_list[0][1]['p_ctrl']):
 
 # with open(f'C_m_T_L{L}.pickle','wb') as f:
 # with open(f'traj_var_C_m_T_O_L{L}.pickle','wb') as f:
-with open(f'circ_var_shots_L{L}.pickle','wb') as f:
+# with open(f'circ_var_shots_L{L}.pickle','wb') as f:
+with open(f'traj_var_C_m_T_MIPT_L{L}.pickle','wb') as f:
     pickle.dump([sC_traj_var_dw,traj_var_dw_dict,traj_var_dw_sem_dict],f)
