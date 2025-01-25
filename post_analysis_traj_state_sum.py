@@ -5,14 +5,14 @@ sys.path.append(dir_path)
 
 from tqdm import tqdm
 from plot_utils import *
-L=20
+L=10
 params_list=[
 ({'nu':0,'de':1,},
 {
 # 'p_ctrl':[.47,.49,.51,.53],
 # 'p_ctrl':[.6],
-# 'p_ctrl':[0.4,0.45,0.47,0.49,0.5,0.51,0.53,0.55,0.6],
-'p_ctrl':[0.1],
+'p_ctrl':[0.4,0.45,0.47,0.49,0.5,0.51,0.53,0.55,0.6],
+# 'p_ctrl':[0.1],
 'p_proj':np.linspace(0.0,0.0,1),
 'sC':np.arange(0,500),
 'sm':np.arange(500),
@@ -20,7 +20,7 @@ params_list=[
 }
 ),
 ]
-ob="O"
+ob="DW"
 ob1=ob+'1'
 ob2=ob+'2'
 for fixed_params,vary_params in params_list:
@@ -38,7 +38,7 @@ for fixed_params,vary_params in params_list:
         data_dict={'fn':set()},
         # zip_fn='/home/jake/Data/MPS_0-1_C_m_x01_T.zip'  
         # zip_fn='./MPS_0-1_C_m_x01_T.zip'  
-        # zip_fn=f'/home/jake/Data/MPS_0-1_C_m_x01_T_L{L}.zip'  
+        # zip_fn=f'./MPS_0-1_C_m_x01_T_L{L}.zip'  
         zip_fn=f'./MPS_0-1_C_m_O_T_L{L}.zip'  
         # zip_fn=f'./MPS_0-1_shots_L{L}.zip' 
     )
@@ -63,14 +63,13 @@ for p in tqdm(params_list[0][1]['p_ctrl']):
         print(p,L)
         sigma_shot[(p,L)]=[]
         for sC in range((params_list[0][1]['sC']).shape[0]):
-            try:
-                sigma_shot_=traj_qvar(df_MPS_0_T_DW,L=L,p_ctrl=p,sC=sC)
-
-                sigma_shot[(p,L)].append(sigma_shot_)
-            except:
-                pass
+            # try:
+            sigma_shot_=traj_qvar(df_MPS_0_T_DW,L=L,p_ctrl=p,sC=sC)
+            sigma_shot[(p,L)].append(sigma_shot_)
+            # except:
+            #     pass
         sigma_shot[(p,L)]=np.array(sigma_shot[(p,L)])
 
-# with open(f'traj_state_sum_L{L}.pickle','wb') as f:
+# with open(f'traj_state_sum_DW_L{L}.pickle','wb') as f:
 with open(f'traj_state_sum_O_L{L}.pickle','wb') as f:
     pickle.dump(sigma_shot,f)
