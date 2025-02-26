@@ -23,6 +23,7 @@ function random_int(L,lower_bound,upper_bound,seed=nothing)
     end
 end
 
+
 function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed_C::Int,seed_m::Int)
     ct=CT.CT_MPS(L=L,seed=0,seed_C=seed_C,seed_m=seed_m,folded=true,store_op=true,store_vec=false,ancilla=0,xj=Set([0]),x0=1//2^L)
     print("x0: ", ct.x0)
@@ -34,15 +35,15 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed_C::Int,seed_m::Int
     tf=(ct.ancilla ==0) ? 2*ct.L^2 : div(ct.L^2,2)
     # dw_list=zeros(tf+1,2)
     # dw_list[1,:]=collect(CT.dw(ct,1))
-    O_list=zeros(tf+1)
-    O_list[1]=CT.Z_bitstring(CT.bitstring_sample(ct))
+    O_list=zeros(BigInt,tf+1)
+    O_list[1]=(CT.bin2dec(CT.bitstring_sample(ct).-1))
     # Oi_list=zeros(tf+1,ct.L)
     # Oi_list[1,:]=circshift(CT.Zi(ct),-i)
     
     for idx in 1:tf
         i=CT.random_control!(ct,i,p_ctrl,p_proj)
         # dw_list[idx+1,:]=collect(CT.dw(ct,(i%ct.L)+1))
-        O_list[idx+1]=CT.Z_bitstring(CT.bitstring_sample(ct))
+        O_list[idx+1]=(CT.bin2dec(CT.bitstring_sample(ct).-1))
         # Oi_list[idx+1,:]=circshift(CT.Zi(ct),-i)
     end
     # O1=CT.Z(ct)
@@ -90,7 +91,7 @@ function main()
     results = run_dw_t(args["L"], args["p_ctrl"], args["p_proj"], args["seed_C"],args["seed_m"])
 
     # filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_sC$(args["seed_C"])_sm$(args["seed_m"])_DW_O_op.json"
-    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_sC$(args["seed_C"])_sm$(args["seed_m"])_x01_shots_T.json"
+    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_sC$(args["seed_C"])_sm$(args["seed_m"])_x01_shots_bitstring_T.json"
     # filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_sC$(args["seed_C"])_sm$(args["seed_m"])_x12_DW_O_op.json"
     # filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_sC$(args["seed_C"])_sm$(args["seed_m"])_x00_DW_O_op.json"
     data_to_serialize = merge(results, Dict("args" => args))
@@ -110,7 +111,7 @@ function main_interactive(L::Int,p_ctrl::Float64,p_proj::Float64,seed_C::Int,see
     args=Dict("L"=>L,"p_ctrl"=>p_ctrl,"p_proj"=>p_proj,"seed_C"=>seed_C,"seed_m"=>seed_m)
     # filename = "MPS_(0,1)_L$(L)_pctrl$(@sprintf("%.3f", p_ctrl))_pproj$(@sprintf("%.3f", p_proj))_sC$(seed_C)_sm$(seed_m)_x01_DW_T.json"
     # filename = "MPS_(0,1)_L$(L)_pctrl$(@sprintf("%.3f", p_ctrl))_pproj$(@sprintf("%.3f", p_proj))_sC$(seed_C)_sm$(seed_m)_DW_T.json"
-    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_sC$(args["seed_C"])_sm$(args["seed_m"])_x01_shots_T.json"
+    filename = "MPS_(0,1)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_sC$(args["seed_C"])_sm$(args["seed_m"])_x01_shots_bitstring_T.json"
     
     # if isfile(filename)
     #     println("File exists: ", "p_ctrl: ", p_ctrl, " p_proj: ", p_proj, " L: ", L, " seed_C: ", seed_C, " seed_m: ", seed_m)
