@@ -807,10 +807,21 @@ function l1_coherence_0(mps::MPS,ct::CT_MPS,k1::Int,k2::Int,i1::Int)
         end
     end
     # println(ket_index,bra_index)
-
-    
 end
 
+"""simplied version of l1_coherence_0 to only compute FDW weight as a func of k"""
+function fdw_weight(ct::CT_MPS,k1::Int,i1::Int)
+    L = length(ct.mps)
+    ket_index = (k1 == 0) ? fill(0,L) : vcat(fill(0, L - k1), [1], fill(-1, k1 - 1))
+    tr_rho = trace_0(ct.mps,ct,ket_index,i1)
+    return tr_rho
+    # println(ket_index,bra_index)
+end
+
+"""simplied version of l1_coherence_0 to only compute FDW weight as a func of k, print all k"""
+function fdw_weights(ct::CT_MPS,i1::Int)
+    return [fdw_weight(ct,k,i1) for k in 0:ct.L]
+end
 
 function sum_of_norm(rdm::MPO,inter)
     len_rdm= sum(length,siteinds(rdm)) 
@@ -850,23 +861,43 @@ function trace(rdm::MPO)
     return abs(scalar(prod(rdm)))
 end
 
-""" compute sum_xxx mps_{001...xxx} * conj(mps)_{001...xxx}"""
+# """ compute sum_xxx mps_{001...xxx} * conj(mps)_{001...xxx}"""
+# function trace_0(mps::MPS,ct::CT_MPS,index::Vector{Int},i1::Int)
+#     V = ITensor(1.0)
+#     mps_c = mps'
+#     for phy_idx in 1:ct.L
+#         ram_idx= ct.phy_ram[mod(ct.phy_list[phy_idx] + i1-1  ,ct.L)+1]
+#         ket_leg = ct.qubit_site[ram_idx]
+#         if index[phy_idx] !=  -1
+#             V *= mps[ram_idx] * state(ket_leg,index[phy_idx]+1)
+#             V *= mps_c[ram_idx] * state(ket_leg',index[phy_idx]+1)
+#         else
+#             V *= mps[ram_idx] * mps_c[ram_idx] * delta(ket_leg,ket_leg')
+#         end
+#     end
+#     return V[1]
+# end
+
+""" compute sum_xxx mps_{001...xxx} * conj(mps)_{001...xxx}, efficient version"""
 function trace_0(mps::MPS,ct::CT_MPS,index::Vector{Int},i1::Int)
     V = ITensor(1.0)
-    mps_c = mps'
-    for phy_idx in 1:ct.L
-        ram_idx= ct.phy_ram[mod(ct.phy_list[phy_idx] + i1-1  ,ct.L)+1]
+    mps_c = conj(mps)'
+    # println(index)
+    for ram_idx in 1:ct.L
+        # println("index:",mod(ct.ram_phy[ram_idx]-i1-1,ct.L)+1)
+        val = index[ mod(ct.ram_phy[ram_idx]-i1-1,ct.L)+1 ]
+        # println(val)
         ket_leg = ct.qubit_site[ram_idx]
-        if index[phy_idx] !=  -1
-            V *= mps[ram_idx] * state(ket_leg,index[phy_idx]+1)
-            V *= mps_c[ram_idx] * state(ket_leg',index[phy_idx]+1)
+        if val !=-1
+            V *= mps[ram_idx] * state(ket_leg,val+1)
+            V *= mps_c[ram_idx] * state(ket_leg',val+1)
         else
             V *= mps[ram_idx] * mps_c[ram_idx] * delta(ket_leg,ket_leg')
         end
     end
-    return V[1]
+    @assert imag(V[1]) < 1e-10 "The imaginary part of the trace is too large"
+    return real(V[1])
 end
-
         
 
 
@@ -1007,8 +1038,8 @@ function get_coherence_matrix(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddi
 end
 
 """simplied version of get_coherence_matrix, without expanding a MPO for density matrix"""
-function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30)
-    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim)
+function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbonddim::Int=30, pivotpos::Int=1)
+    mps_abs= abs_mps(ct.mps;tolerance=tolerance,maxbonddim=maxbonddim,pivotpos=pivotpos)
     # mps_abs= ct.mps
     L=length(mps_abs)
     coherence_matrix=zeros(L+1,L+1)
@@ -1030,6 +1061,20 @@ function get_coherence_matrix_0(ct::CT_MPS,i1::Int;tolerance::Real=1e-8, maxbond
         end
     end
     return coherence_matrix, fdw
+end
+
+"""Only take the diagonal term of the density from, modified from get_coherence_matrix_0"""
+function get_coherence_matrix_diag(ct::CT_MPS,i1::Int)
+    mps_abs= ct.mps
+    L=length(mps_abs)
+    # coherence_matrix=zeros(L+1,L+1)
+    fdw=zeros(L+1)
+    for i in 0:L
+        j=i
+        print(i,j)
+        tmp , fdw[i+1] = l1_coherence_0(mps_abs,ct,i,j,i1)
+    end
+    return fdw
 end
 
 """directly obtain the total coherence using TCI"""
