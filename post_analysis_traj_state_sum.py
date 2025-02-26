@@ -20,7 +20,7 @@ params_list=[
 }
 ),
 ]
-ob="DW"
+ob="O"
 ob1=ob+'1'
 ob2=ob+'2'
 for fixed_params,vary_params in params_list:

@@ -1,0 +1,52 @@
+universe = vanilla
+
+# Job requirements - ensure we are running on a Singularity enabled
+# node and have enough resources to execute our code
+# Tensorflow also requires AVX instruction set and a newer host kernel
+
+request_cpus = 2
+# request_cpus = 6
+request_memory = 20 GB
+# request_memory = 30 GB
+request_disk = 2 GB
+Requirements = GLIDEIN_ResourceName =!= "MI-HORUS-CE1" && GLIDEIN_ResourceName =!= "SIUE-CC-production" && HAS_AVX2
+
+max_idle = 20000
+
+stream_error=true
+stream_output=true
+
+# Container image to run the job in
++SingularityImage = "osdf:///ospool/ap40/data/haining.pan/julia_itensors.sif"
+# +SingularityImage = "osdf:///ospool/ap40/data/haining.pan/julia_itensors_precompile_v3.sif"
+
+# Executable is the program your job will run It's often useful
+# to create a shell script to "wrap" your actual work.
+Executable = run_CT_MPS_shots_bitstring_T_series.sh
+
+# Inputs/outputs - in this case we just need our python code.
+# If you leave out transfer_output_files, all generated files comes back
+transfer_input_files = run_CT_MPS_shots_bitstring_T.jl,run_CT_MPS_shots_bitstring_T_series.jl, CT/Project.toml , CT/Manifest.toml , CT/src/CT.jl
+#transfer_output_files =
+
+# Error and output are the error and output channels from your job
+# that HTCondor returns from the remote host.
+Error = $(Cluster).$(Process).error
+Output = $(Cluster).$(Process).output
+
+# The LOG file is where HTCondor places information about your
+# job's status, success, and resource consumption.
+Log = $(Cluster).log
+
+# Send the job to Held state on failure. 
+#on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)
+
+# Periodically retry the jobs every 1 hour, up to a maximum of 5 retries.
+# periodic_release =  (NumJobStarts < 500) && ((CurrentTime - EnteredCurrentStatus) > 60*1)
+
+# queue is the "start qppnbutton" - it launches any jobs that have been
+# specified thus far.
+
+
+# queue arguments from params_CT_MPS_0_C_m_T_series.txt
+queue arguments from params_CT_MPS_0_C_m_T_L10_series.txt
