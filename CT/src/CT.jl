@@ -480,9 +480,13 @@ function ZZ(ct::CT_MPS)
     return real(-inner(ct.mps', zz, ct.mps)) * 4 / ct.L
 end
 
+raw"""return the bitstring in the "unfolded" order"""
 function bitstring_sample(ct::CT_MPS)
     bitstring = sample!(ct.rng_m,ct.mps)
-    return bitstring
+    return bitstring[ct.phy_ram]
+end
+function bin2dec(v::Vector{Int})
+    return parse(BigInt, join(v), base=2)
 end
 
 function Z_bitstring(bitstring::Vector{Int})
