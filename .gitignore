@@ -13,3 +13,6 @@ obs-del
 .condor_creds
 .gwms.d
 *.zip
+J[0-9]*.sh
+*.out
+*.err
