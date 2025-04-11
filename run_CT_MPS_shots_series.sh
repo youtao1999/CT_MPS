@@ -12,4 +12,7 @@ export JULIA_DEPOT_PATH=/srv/.julia:/usr/local/julia/share/julia
 
 # julia run_CT_MPS_C_m_T_series.jl --p_ctrl $1 --p_proj $2 --L $3 --seed_C $4 --seed_m_min $5 --seed_m_max $6
 # 1185m = 19h45m
+# 4000000 = 4GB
+# 33554432 = 32GB
+# ulimit -v 4000000
 timeout 1185m julia run_CT_MPS_shots_series.jl --params $1

@@ -6,7 +6,7 @@ universe = vanilla
 
 request_cpus = 1
 # request_cpus = 6
-request_memory = 32 GB
+request_memory = 24 GB
 request_disk = 2 GB
 Requirements = GLIDEIN_ResourceName =!= "MI-HORUS-CE1" && GLIDEIN_ResourceName =!= "SIUE-CC-production" && HAS_AVX2
 
@@ -45,6 +45,5 @@ Log = $(Cluster).log
 # queue is the "start qppnbutton" - it launches any jobs that have been
 # specified thus far.
 
-
-# queue arguments from params_CT_MPS_0_C_m_T_series.txt
-queue arguments from params_CT_MPS_0_C_m_T_L20_series.txt
+queue arguments from params_CT_MPS_0_C_m_T_L40_series.txt
+#queue arguments from params_CT_MPS_0_C_m_T_L50_series_single.txt
