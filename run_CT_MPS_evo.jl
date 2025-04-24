@@ -46,8 +46,8 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed_C::Int,seed_m::Int
         
     end
 
-    # O=CT.Z_bitstring(CT.bitstring_sample(ct))
-    return Dict("maxbond"=>maxbond,"success"=>success)
+    O=CT.Z(ct)
+    return Dict("maxbond"=>maxbond,"success"=>success,"O"=>O)
 end
 
 

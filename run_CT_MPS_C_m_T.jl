@@ -32,17 +32,17 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed_C::Int,seed_m::Int
     # x0=random_int(seed,0,2^L-1)//2^L # at random k, with label x00, here seed needs a redefinition, maybe can be seed_v
     i=L
     tf=(ct.ancilla ==0) ? 2*ct.L^2 : div(ct.L^2,2)
-    dw_list=zeros(tf+1,2)
-    dw_list[1,:]=collect(CT.dw(ct,1))
-    # O_list=zeros(tf+1,2)
-    # O_list[1,:]=[CT.Z(ct),CT.Z_sq(ct)]
+    # dw_list=zeros(tf+1,2)
+    # dw_list[1,:]=collect(CT.dw(ct,1))
+    O_list=zeros(tf+1,2)
+    O_list[1,:]=[CT.Z(ct),CT.Z_sq(ct)]
     # Oi_list=zeros(tf+1,ct.L)
     # Oi_list[1,:]=circshift(CT.Zi(ct),-i)
     
     for idx in 1:tf
         i=CT.random_control!(ct,i,p_ctrl,p_proj)
-        dw_list[idx+1,:]=collect(CT.dw(ct,(i%ct.L)+1))
-        # O_list[idx+1,:]=[CT.Z(ct),CT.Z_sq(ct)]
+        # dw_list[idx+1,:]=collect(CT.dw(ct,(i%ct.L)+1))
+        O_list[idx+1,:]=[CT.Z(ct),CT.Z_sq(ct)]
         # Oi_list[idx+1,:]=circshift(CT.Zi(ct),-i)
     end
     # O1=CT.Z(ct)
@@ -51,8 +51,8 @@ function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,seed_C::Int,seed_m::Int
     # DW1,DW2=CT.dw(ct,(i%ct.L)+1)
 
     # return Dict("DW1"=>DW1,"DW2"=>DW2)
-    return Dict("DW1"=>dw_list[:,1],"DW2"=>dw_list[:,2])
-    # return Dict("O1"=>O_list[:,1],"O2"=>O_list[:,2])
+    # return Dict("DW1"=>dw_list[:,1],"DW2"=>dw_list[:,2])
+    return Dict("O1"=>O_list[:,1],"O2"=>O_list[:,2])
     # return Dict("Oi"=>Oi_list)
 end
 
@@ -110,9 +110,9 @@ function main_interactive(L::Int,p_ctrl::Float64,p_proj::Float64,seed_C::Int,see
     # println("Uses backends: ",BLAS.get_config())
     # args = parse_my_args()
     args=Dict("L"=>L,"p_ctrl"=>p_ctrl,"p_proj"=>p_proj,"seed_C"=>seed_C,"seed_m"=>seed_m)
-    filename = "MPS_(0,1)_L$(L)_pctrl$(@sprintf("%.3f", p_ctrl))_pproj$(@sprintf("%.3f", p_proj))_sC$(seed_C)_sm$(seed_m)_x01_DW_T.json"
+    # filename = "MPS_(0,1)_L$(L)_pctrl$(@sprintf("%.3f", p_ctrl))_pproj$(@sprintf("%.3f", p_proj))_sC$(seed_C)_sm$(seed_m)_x01_DW_T.json"
     # filename = "MPS_(0,1)_L$(L)_pctrl$(@sprintf("%.3f", p_ctrl))_pproj$(@sprintf("%.3f", p_proj))_sC$(seed_C)_sm$(seed_m)_DW_T.json"
-    # filename = "MPS_(0,1)_L$(L)_pctrl$(@sprintf("%.3f", p_ctrl))_pproj$(@sprintf("%.3f", p_proj))_sC$(seed_C)_sm$(seed_m)_O_T.json"
+    filename = "MPS_(0,1)_L$(L)_pctrl$(@sprintf("%.3f", p_ctrl))_pproj$(@sprintf("%.3f", p_proj))_sC$(seed_C)_sm$(seed_m)_O_T.json"
     
     # if isfile(filename)
     #     println("File exists: ", "p_ctrl: ", p_ctrl, " p_proj: ", p_proj, " L: ", L, " seed_C: ", seed_C, " seed_m: ", seed_m)
