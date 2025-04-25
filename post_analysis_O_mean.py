@@ -5,13 +5,14 @@ sys.path.append(dir_path)
 
 from tqdm import tqdm
 from plot_utils import *
-L=30
+L=20
 params_list=[
 ({'nu':0,'de':1,},
 {
 # 'p_ctrl':[.47,.49,.51,.53],
 # 'p_ctrl':[.5,],
-'p_ctrl':[0.4,0.45,0.47,0.49,0.5,0.51,0.53,0.55,0.6],
+# 'p_ctrl':[0.4,0.45,0.47,0.49,0.5,0.51,0.53,0.55,0.6],
+'p_ctrl':[.65,.7,.75,.8,.85],
 'p_proj':np.linspace(0.0,0.0,1),
 # 'sC':np.arange(0,5),
 'sC':np.arange(0,500),
@@ -47,12 +48,16 @@ def circ_var_dw_all(df,L,p_ctrl,sC):
         return None
 
 
-O_all_dict={}
+O_mean_dict={}
+O_sem_dict={}
 for p in tqdm(params_list[0][1]['p_ctrl']):
     print(p,L)
-    sC_circ_var_dw=[circ_var_dw_all(df_MPS_0_T_DW,L=L,p_ctrl=p,sC=sC) for sC in np.arange((params_list[0][1]['sC']).shape[0])]
-    sC_circ_var_dw=np.vstack([x for x in sC_circ_var_dw if x is not None]).mean(axis=0)
-    O_all_dict[p,L]= sC_circ_var_dw
+    sC_all=[circ_var_dw_all(df_MPS_0_T_DW,L=L,p_ctrl=p,sC=sC) for sC in np.arange((params_list[0][1]['sC']).shape[0])]
+    data = np.vstack([x for x in sC_all if x is not None])
+    
+
+    O_mean_dict[p,L]= data.mean(axis=0)
+    O_sem_dict[p,L]= data.std(axis=0)/np.sqrt(data.shape[0])
 
 with open(f'mean_C_m_T_O_L{L}.pickle','wb') as f:
-    pickle.dump(O_all_dict,f)
+    pickle.dump([O_mean_dict,O_sem_dict],f)

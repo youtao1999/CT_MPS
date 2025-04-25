@@ -14,8 +14,10 @@ params_list=[
 'sC':np.arange(0,100),
 'sm':[0],
 'L':[L],
-'maxdim':[2048,4096,],
-'cutoff': [1e-10,1e-9,1e-8],
+'maxdim':[2**13,],
+# 'cutoff': [1e-10,1e-9,1e-8],
+# 'cutoff': [1e-5,1e-3,1e-1],
+'cutoff': [1e-15,1e-10, 1e-5,],
 'p_ctrl':np.linspace(0,1,21),
 }
 ),
@@ -40,7 +42,7 @@ for fixed_params,vary_params in params_list:
 
 with open(f'params_CT_MPS_0_C_m_T_L{L}_series.txt','r') as f:
     # lines=f.readlines()
-    linewidth=5
+    linewidth=100
     count=0
     total_string = []
     string = ''
