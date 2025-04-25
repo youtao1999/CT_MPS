@@ -1,5 +1,13 @@
 include("run_CT_MPS_C_m_T.jl")
 
+"""
+    run_CT_MPS_C_m_T_series.jl
+
+    This script runs the CT_MPS_C_m_T.jl script for a range of parameters, all of which can be input as a comma-separated list in the command line, as opposed to 'run_CT_MPS_C_m_T_init.jl' where they must be input explicitly in the script.
+    It is used to initialize the memory and time for the main script.
+    
+"""
+
 function parse_my_args()
     s = ArgParseSettings()
     @add_arg_table! s begin

@@ -10,7 +10,7 @@ using Printf
 
 using ArgParse
 using Serialization
-""" compute domain wall as a function of t"""
+"""Uses Tensor Cross Interpolation (TCI) to compute the coherence matrix, ranks, and errors"""
 
 function run_dw_t(L::Int,p_ctrl::Float64,p_proj::Float64,maxbonddim::Int,t,seed::Int)
     ct=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,xj=Set([0]),x0=1//BigInt(2)^L)

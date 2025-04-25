@@ -10,7 +10,7 @@ using Printf
 
 using ArgParse
 using Serialization
-""" compute domain wall as a function of t"""
+"""Compute the final state of the domain wall as opposed to the time evolution history of the domain wall as in 'run_CT_MPS_C_m_T.jl'"""
 
 function random_int(L,lower_bound,upper_bound,seed=nothing)
     # lower_bound = 2^(L-1)

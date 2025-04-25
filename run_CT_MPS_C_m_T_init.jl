@@ -1,5 +1,13 @@
 using Base.Threads
 
+"""
+    run_CT_MPS_C_m_T_init.jl
+
+    This script runs the CT_MPS_C_m_T.jl script for a range of parameters. The parameters must be input explicitly in the script as opposed to 'run_CT_MPS_C_m_T_series.jl' where they can be input as a comma-separated list in the command line.
+    It is used to initialize the memory and time for the main script.
+    
+"""
+
 # p_ctrl_list = [0.4,0.5,0.6]
 p_ctrl_list = [0.4,0.5,0.5]
 p_proj=0.

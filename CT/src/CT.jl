@@ -76,12 +76,18 @@ function CT_MPS(
     return ct
 end
 
-function _initialize_basis(L,ancilla,folded)
+#= 
+L: int, number of physical qubits
+ancilla: int, number of ancilla qubits
+folded: bool, whether the qubits are folded
+=#
 
-    qubit_site = siteinds("Qubit", L+ancilla) # RAM site index
+function _initialize_basis(L,ancilla,folded)
+    qubit_site = siteinds("Qubit", L+ancilla) # RAM site index, type: Vector{Index{Int64}}
     # ram_phy[actual in ram] = physical 
     if ancilla ==0
         ram_phy = folded ? [i for pairs in zip(1:(L÷2), reverse((L÷2+1):L)) for i in pairs] : collect(1:L)
+        # if folded: [1,L,2,L-1,..] else [1,2,..,L]
     elseif ancilla ==1
         ram_phy = folded ? vcat(L+1,[i for pairs in zip(1:(L÷2), reverse((L÷2+1):L)) for i in pairs]) : vcat(collect(1:L),L+1)
         # if folded : [L+1, 1,L, ..] else [1,2,..,L,L+1]
@@ -96,14 +102,23 @@ function _initialize_basis(L,ancilla,folded)
     end
 
     # phy_list = Dict(0 => 1:L,1=>1:L)[ancilla]
-    phy_list = collect(1:L)
+    phy_list = collect(1:L) # type: Vector{Int}, if not folded phy_list = [1,2,..,L] = ram_phy
     return qubit_site, ram_phy, phy_ram, phy_list
 end
+
+#=
+L: int, number of physical qubits
+ancilla: int, number of ancilla qubits
+x0: int, initial state
+folded: bool, whether the qubits are folded
+qubit_site: Vector{Index{Int64}}, site indices of qubits
+The MPS vector is initialized on RAM sites, not physical sites
+=#
 
 function _initialize_vector(L,ancilla,x0,folded,qubit_site,ram_phy,phy_ram,phy_list,rng_vec,_cutoff,_maxdim0)
     if ancilla == 0
         if x0 !== nothing
-            vec_int = dec2bin(x0, L)
+            vec_int = dec2bin(x0, L) #dec2bin convert x0 to decimal integer corresponding to binary number of length L. e.g. x0=1/2, L=3 -> 4 (binary 100)
             vec_int_pos = [string(s) for s in lpad(string(vec_int, base=2), L, "0")] # physical index
             return MPS(ComplexF64, qubit_site, [vec_int_pos[ram_phy[i]] for i in 1:L])
         else
@@ -144,22 +159,25 @@ index should be ram index
 """
 function apply_op!(mps::MPS, op::ITensor, cutoff::Float64, maxdim::Int)
     i_list = [parse(Int, replace(string(tags(inds(op)[i])[length(tags(inds(op)[i]))]), "n=" => "")) for i in 1:div(length(op.tensor.inds), 2)]
+    # i_list is a list of ram indices upon which the operator "op" acts
     sort!(i_list)
     # println(i_list)
-    orthogonalize!(mps, i_list[1])
-    mps_ij = mps[i_list[1]]
-    for idx in i_list[1]+1:i_list[end]
-        mps_ij *= mps[idx]
+    orthogonalize!(mps, i_list[1]) # shifting the orthogonalization center to the first site upon which the operator acts
+    mps_ij = mps[i_list[1]] # mps_ij is the MPS tensor at the first site upon which the operator acts
+    for idx in i_list[1]+1:i_list[end] # idx loops from the second site upon which the operator acts to the last site upon which the operator acts
+        mps_ij *= mps[idx] # this line gives the order of tensor contraction: starting by defining mps_ij as the MPS tensor at the first site upon which the operator acts, then contracting in sequantial order starting from the second site of the support of the operator "op" to the last site of the support of the operator "op"
     end
-    mps_ij *= op 
-    noprime!(mps_ij)
+    mps_ij *= op # now that mps_ij has completely contracted on the support of the operator "op", we can contract it fully with the operator "op"
+    noprime!(mps_ij) # remove all the prime tags from the MPS tensor mps_ij
     
-    if length(i_list) == 1
+
+    # The remaining part is to decompose the MPS tensor mps_ij into a product of SVD tensors
+    if length(i_list) == 1 # if the operator "op" acts on a single site, then we can just assign the MPS tensor mps_ij to the MPS tensor at the first site upon which the operator acts
         mps[i_list[1]] = mps_ij
     else
-        lefttags= (i_list[1]==1) ? nothing : tags(linkind(mps,i_list[1]-1))
-        for idx in i_list[1]:i_list[end]-1
-            inds1 = (idx ==1) ? [siteind(mps,1)] : [findindex(mps[idx-1],lefttags), findindex(mps[idx],"Site")]
+        lefttags= (i_list[1]==1) ? nothing : tags(linkind(mps,i_list[1]-1)) # lefttags is nothing if the operator "op" happens to act on the first ram site else it is the tags of the link index of the MPS tensor at the first site upon which the operator acts; in short, lefttags is the tags of the link index of the MPS tensor at the site immediately to the left of the first site upon which the operator acts
+        for idx in i_list[1]:i_list[end]-1 # idx loops from the first ram site of the support of the operator "op" to the second to last ram site of the support of the operator "op"
+            inds1 = (idx ==1) ? [siteind(mps,1)] : [findindex(mps[idx-1],lefttags), findindex(mps[idx],"Site")] # inds1 is a list of indices of the i-th tensor of the MPS excluding the index of the leg to the right.
             lefttags=tags(linkind(mps,idx))
             U, S, V = svd(mps_ij, inds1, cutoff=cutoff,lefttags=lefttags,maxdim=maxdim)
             mps[idx] = U

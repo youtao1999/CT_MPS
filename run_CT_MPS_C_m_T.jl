@@ -1,16 +1,16 @@
+using Pkg
+Pkg.activate("CT")
 using ITensors
 using Random
 using LinearAlgebra
 using MKL
-using Pkg
 using JSON
-Pkg.activate("CT")
 using CT
 using Printf
 
 using ArgParse
 using Serialization
-""" compute domain wall as a function of t"""
+"""Compute the time evolution history of the domain wall as opposed to the final state of domain wall as in 'run_CT_MPS_C_m.jl'"""
 
 function random_int(L,lower_bound,upper_bound,seed=nothing)
     # lower_bound = 2^(L-1)
