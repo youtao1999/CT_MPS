@@ -2,6 +2,7 @@ using Pkg
 Pkg.activate("CT")
 using CT
 using ITensors
+using ITensorMPS
 using Random
 using LinearAlgebra
 using MKL
@@ -148,4 +149,5 @@ end
 
 
 
-# julia --sysimage ~/.julia/sysimages/sys_itensors.so run_CT_MPS_1-3.jl --p_ctrl 0.5 --p_proj 0.0 --L 8 --seed 0 --ancilla 0
+# windows: julia --sysimage ~/.julia/sysimages/sys_itensors.so run_CT_MPS_1-3.jl --p_ctrl 0.5 --p_proj 0.0 --L 8 --seed 0 --ancilla 0
+# linux/mac: julia --sysimage ~/.julia/sysimages/sys_itensors.dylib run_CT_MPS_1-3.jl --p_ctrl 0.5 --p_proj 0.0 --L 8 --seed 0 --ancilla 0

@@ -1,6 +1,7 @@
 module CT
 
 using ITensors
+using ITensorMPS
 using Random
 using LinearAlgebra
 import TensorCrossInterpolation as TCI
