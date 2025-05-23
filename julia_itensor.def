@@ -1,0 +1,58 @@
+Bootstrap: docker
+From: julia:1.9.3
+
+%files
+    CT/src/CT.jl /opt/CT/src/
+    CT/Project.toml /opt/CT/
+    CT/Manifest.toml /opt/CT/
+
+%post
+    # Install system dependencies
+    apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        git \
+        libopenblas-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Create project directory and copy Project.toml
+    mkdir -p /opt/CT/src
+    
+    # Install and precompile packages
+    julia --project=/opt/CT -e 'using Pkg; Pkg.instantiate()'
+    julia --project=/opt/CT -e '
+        using Pkg;
+        # Force precompilation of all packages
+        for pkg in values(Pkg.dependencies())
+            if pkg.is_direct_dep
+                @info "Precompiling $(pkg.name)";
+                using_stmt = "using $(pkg.name)";
+                eval(Meta.parse(using_stmt));
+            end
+        end;
+        # Specifically precompile the main packages we know we need
+        using ITensors;
+        using ITensorMPS;
+        using Random;
+        using LinearAlgebra;
+        using MKL;
+        using JSON;
+        using Printf;
+        using ArgParse;
+        using Serialization;
+        using ProgressMeter;
+        
+        # Precompile the CT module
+        push!(LOAD_PATH, "/opt/CT/src");
+        using CT;
+        @info "Precompiled CT module";'
+
+%environment
+    export JULIA_NUM_THREADS=4
+    export OPENBLAS_NUM_THREADS=1
+    export JULIA_PROJECT=/opt/CT
+    export JULIA_LOAD_PATH="/opt/CT/src:$JULIA_LOAD_PATH"
+
+%runscript
+    exec julia --project=/opt/CT "$@"
+

@@ -1,18 +1,19 @@
-using Pkg
-Pkg.activate("CT")
-using CT
-using ITensors
-using ITensorMPS
-using Random
-using LinearAlgebra
-using MKL
-using Pkg
+# Import all required packages first
+using ArgParse
 using JSON
 using Printf
 using ProgressMeter
-
-using ArgParse
+using Random
+using LinearAlgebra
+using MKL
 using Serialization
+using ITensors
+using ITensorMPS
+using CT
+
+"""
+This script computes the late-time entanglement entropy with 1/3 and 2/3 global control maps.
+"""
 
 function get_mem_stats()
     stats = Base.gc_num()
@@ -145,8 +146,6 @@ end
 if isdefined(Main, :PROGRAM_FILE) && abspath(PROGRAM_FILE) == @__FILE__
     main()
 end
-
-
 
 
 # windows: julia --sysimage ~/.julia/sysimages/sys_itensors.so run_CT_MPS_1-3.jl --p_ctrl 0.5 --p_proj 0.0 --L 8 --seed 0 --ancilla 0
