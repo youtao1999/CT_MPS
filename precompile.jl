@@ -1,8 +1,8 @@
 # precompile.jl
 using CT, ArgParse
-include("run_CT_MPS_C_m_T.jl")
+include("run_CT_MPS_1-3.jl")
 # do one dummy call so all methods get JIT’ed
-main_interactive(20, 0.35, 0., 99, 99)
+main_interactive(20, 0.4, 0.7, 42, 0.0, "test.h5")
 
 # To run the precompilation, use the following command:
 # export JULIA_DEPOT_PATH=~/julia_depot
@@ -10,7 +10,7 @@ main_interactive(20, 0.35, 0., 99, 99)
 # using PackageCompiler; using Pkg; Pkg.activate("CT")
 # create_sysimage(
 #     [:CT, :ITensors, :ArgParse, :JSON],
-#     sysimage_path="C_m_T.jl.so",
+#     sysimage_path="CT_MPS_1-3_ios.so",
 #     precompile_execution_file="precompile.jl"
 #   )
 

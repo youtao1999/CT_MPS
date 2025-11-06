@@ -277,34 +277,6 @@ function X!(ct::CT_MPS, i::Int)
     # normalize!(ct.mps)
 end
 
-
-# """
-# compute the entanglement entropy of 1...i, i+1...L (ram sites)
-# """
-# function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,postivedefinite=false)
-#     mps_ = orthogonalize(mps, i)
-#     # _,S = svd(mps_[i], (linkind(mps_, i-1), siteind(mps_,i)))
-#     _, S = svd(mps_[i], (linkind(mps_, i),))
-#     # SvN = 0.0
-#     # for n = 1:dim(S, 1)
-#     #     p = S[n, n]^2
-#     #     SvN -= p * log(p)
-#     # end
-#     if postivedefinite
-#         p=max.(diag(S),1e-16)
-#     else
-#         p=diag(S).^2
-#     end
-#     if n==1
-#         SvN = -sum(p .* log.(p))
-#     elseif n==0
-#         SvN = log(length(p))
-#     else
-#         SvN = log(sum(p.^n)) / (1 - n)
-#     end
-#     return SvN
-# end
-
 """compute the 2nd Renyi entropy from definition  by tracing out the `region` (physical sites). """
 function Renyi_entropy(ct::CT_MPS,  region::Vector{Int})
     # construct the density matrix from mps
