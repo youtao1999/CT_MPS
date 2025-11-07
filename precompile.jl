@@ -10,8 +10,9 @@ main_interactive(20, 0.4, 0.7, 42, 0.0, "test.h5")
 # using PackageCompiler; using Pkg; Pkg.activate("CT")
 # create_sysimage(
 #     [:CT, :ITensors, :ArgParse, :JSON],
-#     sysimage_path="CT_MPS_1-3_ios.so",
-#     precompile_execution_file="precompile.jl"
+#     sysimage_path="/scratch/ty296/CT_MPS/run_CT_MPS_1-3.so",
+#     precompile_execution_file="precompile.jl",
+#     cpu_target="generic"
 #   )
 
 

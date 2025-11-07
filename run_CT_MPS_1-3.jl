@@ -4,7 +4,6 @@ using LinearAlgebra
 using MKL
 using Pkg
 using JSON
-Pkg.activate("CT")
 using CT
 using Printf
 using HDF5
@@ -35,6 +34,7 @@ function store_result_hdf5_single_shot(filename::String, sv_arr::Vector{Float64}
         attributes(sv_dataset)["p_ctrl"] = args["p_ctrl"]
         attributes(sv_dataset)["p_proj"] = args["p_proj"]
         attributes(sv_dataset)["eps"] = args["eps"]
+        attributes(sv_dataset)["seed"] = args["seed"]
     end
 end
 
@@ -47,7 +47,9 @@ function main_interactive(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int, eps:
     for idx in 1:T_max
         println(idx)
         i=CT.random_control!(ct_f,i,p_ctrl,p_proj)
-        # @show Base.gc_live_bytes() / 1024^2
+        # @show linkdims(ct_f.mps)
+        # @show "Heap memory usage (MB): " Base.gc_live_bytes() / 1024^2
+        # @show "Max RSS (MB): " Sys.maxrss() / 1024^2
     end
     sv_arr=CT.von_Neumann_entropy(ct_f.mps,div(ct_f.L,2); n = 0, positivedefinite=false, threshold=1e-16, sv=true)
     store_result_hdf5_single_shot(filename, sv_arr, args)
@@ -89,7 +91,7 @@ function main()
     println("Uses threads: ",BLAS.get_num_threads())
     println("Uses backends: ",BLAS.get_config())
     args = parse_my_args()
-    main_interactive(args["L"], args["p_ctrl"], args["p_proj"], args["seed"],args["eps"], "MPS_(1-3,2-3)_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"]).h5")
+    main_interactive(args["L"], args["p_ctrl"], args["p_proj"], args["seed"],args["eps"], "/scratch/ty296/hdf5_data/p_ctrl0.4_haining/MPS_L$(args["L"])_pctrl$(@sprintf("%.3f", args["p_ctrl"]))_pproj$(@sprintf("%.3f", args["p_proj"]))_s$(args["seed"]).h5")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
