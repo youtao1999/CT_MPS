@@ -3,11 +3,18 @@
 #SBATCH --ntasks=1                # Number of tasks (processes)
 #SBATCH --requeue
 #SBATCH --cpus-per-task=5        # Number of CPU cores per task (1 main + 4 workers)
+#SBATCH --mem-per-cpu=16G
 #SBATCH --time=18:00:00            # Time limit hrs:min:sec
 #SBATCH --output=/scratch/ty296/logs/%j.out            # Standard output log
 #SBATCH --error=/scratch/ty296/logs/%j.err             # Standard error log
 #SBATCH --partition=main
 
+
+# Disable multithreading to ensure single-threaded workers
+export JULIA_NUM_THREADS=1        # Julia threading
+export OMP_NUM_THREADS=1          # OpenMP threading (for BLAS/LAPACK)
+export MKL_NUM_THREADS=1          # Intel MKL threading
+export OPENBLAS_NUM_THREADS=1     # OpenBLAS threading
 
 # Variables provided via --export (defaults are handled in Julia script if not provided)
 

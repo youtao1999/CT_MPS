@@ -16,7 +16,7 @@ from collections import defaultdict
 if __name__ == "__main__":
 
     # Configuration parameters
-    seed_per_job = 10
+    seed_per_job = 40
     
     L_list = [12, 16, 20, 24]
     p_ctrl_list = [0.4]
@@ -77,4 +77,6 @@ if __name__ == "__main__":
         else:
             time.sleep(time_interval)
 
-# nohup python3 -u /scratch/ty296/CT_MPS/job_manager.py > /scratch/ty296/CT_MPS/job_manager.log 2>&1 &
+# nohup python3 -u /scratch/ty296/CT_MPS/job_manager_dist.py > /scratch/ty296/CT_MPS/job_manager_dist.log 2>&1 &
+
+# ps -u ty296 -o pid,cmd | grep python | grep -v grep
