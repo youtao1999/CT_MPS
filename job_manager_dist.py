@@ -18,7 +18,7 @@ if __name__ == "__main__":
     # Configuration parameters
     seed_per_job = 40
     
-    L_list = [12, 16, 20, 24]
+    L_list = [30, 40]
     p_ctrl_list = [0.4]
     p_proj_list = np.linspace(0.5, 1.0, 50)
     seed_list = range(0, 2000, 1)

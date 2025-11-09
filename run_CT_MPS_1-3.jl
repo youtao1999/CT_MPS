@@ -40,16 +40,16 @@ end
 
 function main_interactive(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int, eps::Float64, filename::String)
     args = Dict("L" => L, "p_ctrl" => p_ctrl, "p_proj" => p_proj, "eps" => eps, "seed" => seed)
-    ct_f=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,debug=false,xj=Set([1//3,2//3]),_maxdim=2^(L÷2), _eps=eps)
+    ct_f=CT.CT_MPS(L=L,seed=seed,folded=true,store_op=false,store_vec=false,ancilla=0,debug=false,xj=Set([1//3,2//3]),_maxdim=2^(L÷2), _eps=eps, _cutoff=eps)
     i=1
     T_max = 2*(ct_f.L^2)
 
     for idx in 1:T_max
         println(idx)
         i=CT.random_control!(ct_f,i,p_ctrl,p_proj)
-        # @show linkdims(ct_f.mps)
-        # @show "Heap memory usage (MB): " Base.gc_live_bytes() / 1024^2
-        # @show "Max RSS (MB): " Sys.maxrss() / 1024^2
+        @show linkdims(ct_f.mps)
+        @show "Heap memory usage (MB): " Base.gc_live_bytes() / 1024^2
+        @show "Max RSS (MB): " Sys.maxrss() / 1024^2
     end
     sv_arr=CT.von_Neumann_entropy(ct_f.mps,div(ct_f.L,2); n = 0, positivedefinite=false, threshold=1e-16, sv=true)
     store_result_hdf5_single_shot(filename, sv_arr, args)

@@ -41,7 +41,7 @@ end
     args = Dict("L" => L, "p_ctrl" => p_ctrl, "p_proj" => p_proj, "eps" => eps, "seed" => seed)
     ct_f = CT.CT_MPS(L=L, seed=seed, folded=true, store_op=false, store_vec=false, 
                      ancilla=0, debug=false, xj=Set([1//3, 2//3]), 
-                     _maxdim=2^(L÷2), _eps=eps)
+                     _maxdim=2^(L÷2), _eps=eps, _cutoff=eps)
     i = 1
     T_max = 2*(ct_f.L^2)
     
@@ -80,7 +80,7 @@ function parse_my_args()
             help = "list of random seeds to run"
         "--eps", "-e"
             arg_type = Float64
-            default = 0.0
+            default = 1e-15
             help = "set the eps"
         "--output_dir", "-o"
             arg_type = String

@@ -4,7 +4,7 @@
 #SBATCH --requeue
 #SBATCH --cpus-per-task=5        # Number of CPU cores per task (1 main + 4 workers)
 #SBATCH --mem-per-cpu=16G
-#SBATCH --time=18:00:00            # Time limit hrs:min:sec
+#SBATCH --time=36:00:00            # Time limit hrs:min:sec
 #SBATCH --output=/scratch/ty296/logs/%j.out            # Standard output log
 #SBATCH --error=/scratch/ty296/logs/%j.err             # Standard error log
 #SBATCH --partition=main
