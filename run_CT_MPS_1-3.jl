@@ -51,7 +51,7 @@ function main_interactive(L::Int,p_ctrl::Float64,p_proj::Float64,seed::Int, eps:
         @show "Heap memory usage (MB): " Base.gc_live_bytes() / 1024^2
         @show "Max RSS (MB): " Sys.maxrss() / 1024^2
     end
-    sv_arr=CT.von_Neumann_entropy(ct_f.mps,div(ct_f.L,2); n = 0, positivedefinite=false, threshold=1e-16, sv=true)
+    sv_arr=CT.von_Neumann_entropy(ct_f.mps,div(ct_f.L,2); n = 0, positivedefinite=false, threshold=1e-16, sv=true, cutoff=eps)
     store_result_hdf5_single_shot(filename, sv_arr, args)
     return sv_arr, CT.max_bond_dim(ct_f.mps), filename
 end

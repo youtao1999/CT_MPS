@@ -1388,9 +1388,9 @@ function mpo_to_mps(mps::MPS,site::Vector{Index{Int64}},trace_idx::Set{Int64};pi
     return tci, ranks, errors
 end
 
-function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,positivedefinite=false,threshold::Float64=1e-16,sv=false)
+function von_Neumann_entropy(mps::MPS, i::Int; n::Int=1,positivedefinite=false,threshold::Float64=1e-16,sv=false, cutoff::Float64=1e-10)
     mps_ = orthogonalize(mps, i)
-    _, S = svd(mps_[i], (linkind(mps_, i),))
+    _, S = svd(mps_[i], (linkind(mps_, i),); cutoff=cutoff)
     if sv
         return array(diag(S))
     end

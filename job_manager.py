@@ -20,7 +20,7 @@ if __name__ == "__main__":
     L_list = [12, 16, 20, 24]
     p_ctrl_list = [0.4]
     p_proj_list = np.linspace(0.5, 1.0, 50)
-    seed_list = range(0, 2000, 1)
+    seed_list = range(2000, 4000, 1)
     all_combinations = list(product(L_list, p_ctrl_list, p_proj_list, seed_list))
     
     # filter out existing files
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     max_queue_size = 480
     time_interval = 60
     SLURM_SCRIPT = "/scratch/ty296/CT_MPS/run_CT_MPS_1-3.slurm"
-    OUTPUT_DIR = "/scratch/ty296/hdf5_data/p_ctrl0.4_haining/"
+    OUTPUT_DIR = "/scratch/ty296/hdf5_data/p_ctrl0.4_haining/cutoff1e-10/"
 
     total_num_jobs = len(job_list)
     # submit jobs

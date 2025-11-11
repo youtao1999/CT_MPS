@@ -52,7 +52,7 @@ end
     
     sv_arr = CT.von_Neumann_entropy(ct_f.mps, div(ct_f.L, 2); 
                                      n=0, positivedefinite=false, 
-                                     threshold=1e-16, sv=true)
+                                     threshold=1e-16, sv=true, cutoff=eps)
     store_result_hdf5_single_shot(filename, sv_arr, args)
     
     return sv_arr, CT.max_bond_dim(ct_f.mps), filename
@@ -80,11 +80,11 @@ function parse_my_args()
             help = "list of random seeds to run"
         "--eps", "-e"
             arg_type = Float64
-            default = 1e-15
+            default = 1e-10
             help = "set the eps"
         "--output_dir", "-o"
             arg_type = String
-            default = "/scratch/ty296/hdf5_data/p_ctrl0.4_haining/"
+            default = "/scratch/ty296/hdf5_data/p_ctrl0.4_haining/cutoff1e-10/"
             help = "output directory"
     end
     return parse_args(s)

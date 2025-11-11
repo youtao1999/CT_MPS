@@ -18,7 +18,7 @@ if __name__ == "__main__":
     # Configuration parameters
     seed_per_job = 40
     
-    L_list = [30, 40]
+    L_list = [12, 16, 20, 24]
     p_ctrl_list = [0.4]
     p_proj_list = np.linspace(0.5, 1.0, 50)
     seed_list = range(0, 2000, 1)
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     # filter out existing files and group by (L, p_ctrl, p_proj)
     grouped_jobs = defaultdict(list)
     for L, p_ctrl, p_proj, seed in all_combinations:
-        file_name = f"/scratch/ty296/hdf5_data/p_ctrl0.4_haining/MPS_L{L}_pctrl{p_ctrl:.3f}_pproj{p_proj:.3f}_s{seed}.h5"
+        file_name = f"/scratch/ty296/hdf5_data/p_ctrl0.4_haining/cutoff1e-10/MPS_L{L}_pctrl{p_ctrl:.3f}_pproj{p_proj:.3f}_s{seed}.h5"
         if os.path.exists(file_name):
             print(f"File {file_name} exists, skipping", flush=True)
         else:
@@ -47,8 +47,9 @@ if __name__ == "__main__":
     max_queue_size = 480
     time_interval = 60
     SLURM_SCRIPT = "/scratch/ty296/CT_MPS/run_CT_MPS_1-3_dist.slurm"
-    OUTPUT_DIR = "/scratch/ty296/hdf5_data/p_ctrl0.4_haining/"
-
+    OUTPUT_DIR = "/scratch/ty296/hdf5_data/p_ctrl0.4_haining/cutoff1e-15/"
+    EPS = 1e-15
+    
     total_num_jobs = len(job_list)
     # submit jobs
     while True:
@@ -64,7 +65,7 @@ if __name__ == "__main__":
                     L, p_ctrl, p_proj, seed_batch = job
                     # Format seeds as space-separated string
                     seeds_str = " ".join(map(str, seed_batch))
-                    cmd = f'sbatch --export=ALL,L={L},P_CTRL={p_ctrl},P_PROJ={p_proj},SEEDS="{seeds_str}",OUTPUT_DIR={OUTPUT_DIR} {SLURM_SCRIPT}'
+                    cmd = f'sbatch --export=ALL,L={L},P_CTRL={p_ctrl},P_PROJ={p_proj},SEEDS="{seeds_str}",OUTPUT_DIR={OUTPUT_DIR},EPS={EPS} {SLURM_SCRIPT}'
                     print(f"Command: {cmd}", flush=True)
                     subprocess.run(cmd, shell=True)
                 print(f'Submitted {num_jobs_to_submit} jobs to queue', flush=True)
